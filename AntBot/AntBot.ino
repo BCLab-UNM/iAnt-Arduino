@@ -23,7 +23,7 @@
 ////////////////
 
 //Simulator (set flag to true for simulator mode, false otherwise)
-bool simFlag = false;
+bool simFlag = true;
 
 //Food
 bool tagFound = false; //indicates whether tag has been found while searching?
@@ -54,7 +54,7 @@ const byte ssTx = 5;
 const byte usEcho = 16; //Ultrasonic echo pin
 const byte usTrigger = 17; //Ultrasonic trigger pin
 const float collisionDistance = 30; //threshold distance for collision recognition (cm)
-const float nestRadius = 6.35; //radius of the nest (cm)
+const float nestRadius = 8; //radius of the nest (cm)
 Ant::Covariance usCov = Ant::Covariance(1.9390,-0.5570,-0.5570,0.3142); //ultrasound covariance matrix
 
 //Other
@@ -81,9 +81,11 @@ void setup()
 {
   //Open local serial connection for debugging
   Serial.begin(9600);
-  
+
   //Open serial connection to iDevice
   softwareSerial.begin(9600);
+  
+  delay(1000);
   
   //Request randm seed
   softwareSerial.println("seed");
@@ -105,7 +107,7 @@ void setup()
   pid.SetSampleTime(50); //ms
   
   //Localize to find starting point
-  absLoc = ant.localize(60);
+  absLoc = ant.localize(70);
 }
 
 /////////////////
@@ -116,7 +118,7 @@ void loop()
 {
   //We use four location structs:
   //1. goalLoc will hold the location of the goal in relation to the nest (NOTE: A new goal is randmly selected here if food was not found in last search)
-  if (!tagFound) goalLoc = Ant::Location(Utilities::Polar(randm.boundedUniform(0,200),randm.boundedUniform(0,359)));
+  if (!tagFound) goalLoc = Ant::Location(Utilities::Polar(randm.boundedUniform(nestRadius+collisionDistance,200),randm.boundedUniform(0,359)));
   else goalLoc = foodLoc;
   //2. temLoc holds distance and heading from the *start* of the current leg to the goal
   tempLoc = goalLoc - absLoc;

@@ -48,8 +48,8 @@ float Ultrasound::distance()
 	//Assumes speed of sound of 344.83 m/s
 	int distance = time * (1/29.0);
 
-	//Return distance
-	return distance;
+	//Return distance (we cap this at 400 cm, the maximum rating for the ultrasound)
+	return min(distance,400);
 }
 
 ///////////////////

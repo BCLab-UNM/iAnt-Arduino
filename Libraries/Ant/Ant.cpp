@@ -168,33 +168,24 @@ void Ant::collisionAvoidance(float boundry,float speed,unsigned long &loopTimer)
 *	Counts total number of tags within a 360 sweep of current location
 *	Receives number of original tag to avoid double counting
 **/
-int Ant::countNeighbors(int tagNum)
+int Ant::countNeighbors(int firstTag)
 {
 	//Initialize local variables
 	int tagCount = 0;
-	float start_heading = compass->heading();
-	
-	//Rotate 30 degrees to avoid re-reading original tag
-	align(util->pmod(start_heading + 30,360),70);
-	
-	//Ask iDevice to enable QR reader
-	softwareSerial->println("read on");
-	while (!serialFind("read on")) {}
-	
-	for (int i=1; i<12; i++) {
-		align(util->pmod(start_heading + i*30,360),70);
-		if ((serialFind("yes","no",500) == 1) && (softwareSerial->parseInt() != tagNum)) {
-			//Count neighboring tag
-			tagCount++;
-			//Restart QR reader (required by QR SDK running on iDevice)
-			softwareSerial->println("read off");
-			softwareSerial->println("read on");
-			while (!serialFind("read on")) {}
+	int lastTag = 0;
+
+	for (int i=1; i<36; i++) {
+		align(util->pmod(compass->heading() + 10,360),70);
+		if (serialFind("yes","no",100) == 1) {
+			int currentTag = softwareSerial->parseInt();
+			if ((currentTag != firstTag) && (currentTag != lastTag)) {
+				//Count neighboring tag
+				tagCount++;
+				//Update last tag
+				lastTag = currentTag;
+			}
 		}
 	}
-	
-	//Ask iDevice to disable QR reader
-	softwareSerial->println("read off");
 	
 	return tagCount;
 }
@@ -226,73 +217,91 @@ void Ant::driftCorrection(PID &pid, double &input, double &output, byte speed) {
 
 /**
 *	Receives two-byte tuples from the iDevice and translates them into movement
-*	Function terminates when stop signal is received (returns true) or if timeout occcurs (returns false)
+*	Function terminates within a set threshold (returns true) or if timeout occcurs (returns false)
 **/
 bool Ant::getDirections(byte speed, int timeout) {
+	//Local variables
 	unsigned long time;
-	char cmd[2];
-	byte b;
-	bool flag = false;
+	int cmd[2] = {INT_MAX, INT_MAX};
+	bool stopFlag = false;
 	
 	while (1) {
 		util->tic(timeout);
 		time = millis();
 		
-		while ((b == 255) && (!util->isTime())) {
-			b = softwareSerial->read();
-			if ((cmd[1] > 0) && (millis() - time > cmd[1])) {
+		while ((softwareSerial->read() == -1) && (!util->isTime())) {
+			if (((abs(cmd[0]) < INT_MAX) && (abs(cmd[0]) > 0) && (millis() - time > max(abs(cmd[0]),30))) ||
+				((cmd[0] == 0) && (millis() - time > max(abs(cmd[1]/2),30)))) {
 				move->stopMove();
-				cmd[1] = 0;
+				cmd[0] = INT_MAX;
 			}
 		}
-
-		cmd[0] = b;
-		b = 255;
-		
-		while ((b == 255) && (!util->isTime())) {
-			b = softwareSerial->read();
-		}
-		cmd[1] = b;
-		b = 255;
 		
 		if (util->isTime()) {
+			move->stopMove();
 			return false;
 		}
 
-		//stop
-		if (cmd[0] == 's') {
+		cmd[0] = softwareSerial->parseInt();
+		
+		while ((softwareSerial->read() == -1) && (!util->isTime())) {}
+		
+		if (util->isTime()) {
 			move->stopMove();
-			if (flag) {
-				return true;
+			return false;
+		}
+		 
+		cmd[1] = softwareSerial->parseInt();
+		softwareSerial->read();
+		
+		if (abs(cmd[0]) < 2) {
+			cmd[0] = 0;
+			
+			if (abs(cmd[1]) < 2) {
+				if (stopFlag) {
+					move->stopMove();
+					return true;
+				}
+				else {
+					stopFlag = true;
+				}
 			}
 			else {
-				flag = true;
+				if (cmd[1] < 0) {
+					move->backward(speed,speed);
+				}
+				else if (cmd[1] > 0) {
+					move->forward(speed,speed);
+				}
+				else {
+					move->stopMove();
+				}
+				stopFlag = false;
 			}
 		}
-		else {
-			//rotate left
-			if (cmd[0] == 'l') {
-				move->rotateLeft(speed);
-			}
-			//rotate right
-			if (cmd[0] == 'r') {
+		
+		else if (abs(cmd[0]) < INT_MAX) {		
+			if (cmd[0] < 0) {
 				move->rotateRight(speed);
 			}
-			//drive forward
-			if (cmd[0] == 'f') {
-				move->forward(speed,speed);
+			else if (cmd[0] > 0) {
+				move->rotateLeft(speed);
 			}
-			//drive backward
-			if (cmd[0] == 'b') {
-				move->backward(speed,speed);
+			else {
+				move->stopMove();
 			}
-			flag = false;
+			stopFlag = false;
+		}
+		
+		else {
+			move->rotateLeft(speed);
+			stopFlag = false;
 		}
 	}
 }
 
 /**
-*	Search for red-colored nest using OpenCV through iDevice
+*	Search for nest using OpenCV through iDevice
 *	Reset absolute location via compass and ultrasound measurements
 **/
 Ant::Location Ant::localize(byte speed) {
@@ -354,6 +363,8 @@ int Ant::randomWalk(Random &r,byte speed,float std,float collisionDistance,float
 	float heading;
 	int tagNum;
 	int tagNeighbors;
+	bool localizedFlag = false;
+	int stepTimer = 300; //length of step in random walk (ms)
 	randm = &r;
 	
 	//Ask iDevice to enable QR tag searching
@@ -374,23 +385,30 @@ int Ant::randomWalk(Random &r,byte speed,float std,float collisionDistance,float
 		}
 		
 		//calculate location after next step in random walk
-		*tempLoc = *absLoc + Location(Utilities::Polar(25,heading));
+		*tempLoc = *absLoc + Location(Utilities::Polar((double)stepTimer/1000*25,heading));
 		
 		//if stepping outside of virtual fence, search for nest to ensure correct location
-		if (tempLoc->pol.r > fenceRadius) {
+		//we use a flag to ensure this localizing is only done once each time we're outside the fence
+		if ((tempLoc->pol.r > fenceRadius - 50)  && !localizedFlag){
 			//Ask iDevice to disable QR tag searching
 			softwareSerial->println("tag off");
 
 			//ensure correct location
-			*absLoc = localize(speed);
+			*absLoc = localize(70);
 			
 			//Ask iDevice to enable QR tag searching
 			softwareSerial->println("tag on");
 			while (!serialFind("tag on")) {}
+			
+			//set flag
+			localizedFlag = true;
 		}
 
 		//ensure we are inside virtual fence (otherwise we stay aligned toward the nest)
-		if (absLoc->pol.r < fenceRadius) {
+		if (absLoc->pol.r < fenceRadius - 50) {
+			//reset flag
+			localizedFlag = false;
+			
 			//search for tag during alignment
 			while ((abs(util->angle(compass->heading(),heading))>30) && (!softwareSerial->available())){
 				if (util->angle(compass->heading(),heading) > 0) {
@@ -402,12 +420,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float collisionDistance,float
 			}
 			
 			//if iDevice has discovered a tag and has directions available
-			if (softwareSerial->available() && getDirections(speed)) {
-				//Disable tag search, enable tag reading
-				softwareSerial->println("tag off");
-				softwareSerial->println("read on");
-				while (!serialFind("read on")) {}
-				
+			if (softwareSerial->available() && getDirections(70,5000)) {
 				//Check iDevice for valid QR tag
 				int result = serialFind("yes","no",5000);
 				
@@ -416,14 +429,14 @@ int Ant::randomWalk(Random &r,byte speed,float std,float collisionDistance,float
 					//record tag number
 					tagNum = softwareSerial->parseInt();
 					
-					//disable tag reading
-					softwareSerial->println("read off");
-					
 					//count number of neighboring tags
 					tagNeighbors = countNeighbors(tagNum);
 					
+					//Ask iDevice to disable QR tag searching
+					softwareSerial->println("tag off");
+					
 					//ensure correct location
-					*absLoc = localize(speed);
+					*absLoc = localize(70);
 					
 					//transmit location and tag info to server
 					print("tag," + String(tagNum) + "," + String(tagNeighbors));
@@ -436,11 +449,6 @@ int Ant::randomWalk(Random &r,byte speed,float std,float collisionDistance,float
 					//Rotate 180 degrees to avoid re-reading tag
 					heading = util->pmod(compass->heading()-180,360);
 				}
-				
-				//Disable tag reading, enable tag search
-				softwareSerial->println("read off");
-				softwareSerial->println("tag on");
-				while (!serialFind("tag on")) {}
 			}
 			
 			//Complete alignment
@@ -449,9 +457,6 @@ int Ant::randomWalk(Random &r,byte speed,float std,float collisionDistance,float
 		
 		//Check collision distance
 		if (!us->collisionDetection(collisionDistance)) {
-			//length of step in random walk
-			int stepTimer = 300;
-			
 			//send dump to server
 			print();
 			
@@ -464,12 +469,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float collisionDistance,float
 			move->stopMove();
 			
 			//if iDevice has discovered a tag and has directions available
-			if (softwareSerial->available() && getDirections(speed)) {
-				//Disable tag search, enable tag reading
-				softwareSerial->println("tag off");
-				softwareSerial->println("read on");
-				while (!serialFind("read on")) {}
-				
+			if (softwareSerial->available() && getDirections(70,5000)) {
 				//Check iDevice for valid QR tag
 				int result = serialFind("yes","no",5000);
 				
@@ -478,14 +478,14 @@ int Ant::randomWalk(Random &r,byte speed,float std,float collisionDistance,float
 					//record tag number
 					tagNum = softwareSerial->parseInt();
 					
-					//disable tag reading
-					softwareSerial->println("read off");
-					
 					//count number of neighboring tags
 					tagNeighbors = countNeighbors(tagNum);
 					
+					//Ask iDevice to disable QR tag searching
+					softwareSerial->println("tag off");
+					
 					//ensure correct location
-					*absLoc = localize(speed);
+					*absLoc = localize(70);
 					
 					//transmit location and tag info to server
 					print("tag," + String(tagNum) + "," + String(tagNeighbors));
@@ -498,11 +498,6 @@ int Ant::randomWalk(Random &r,byte speed,float std,float collisionDistance,float
 					//Rotate 180 degrees to avoid re-reading tag
 					align(util->pmod(compass->heading()-180,360),70,5);
 				}
-				
-				//Disable tag reading, enable tag search
-				softwareSerial->println("read off");
-				softwareSerial->println("tag on");
-				while (!serialFind("tag on")) {}
 			}
 			
 			//update current location with information from last leg
@@ -516,7 +511,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float collisionDistance,float
 	softwareSerial->println("tag off");
 	
 	//ensure correct location
-	*absLoc = localize(speed);
+	*absLoc = localize(70);
 
 	//negative value indicates no tag found
 	return -1;
@@ -614,7 +609,8 @@ int Ant::serialFind(String msg, int timeout) {
 *	Allows for possibility of two different messages
 **/
 int Ant::serialFind(String msgOne, String msgTwo, int timeout) {
-		util->tic(timeout);
+	
+	util->tic(timeout);
 	String cmd = "";
 	
 	while (!util->isTime()) {
