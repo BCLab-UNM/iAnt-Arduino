@@ -63,21 +63,27 @@ class Ant {
 		Ant();
 		Ant(Compass &co,Movement &m,SoftwareSerial &sS,Ultrasound &ul,Utilities &ut,
 			Location &aL,Location &gL,Location &tL,
-			unsigned long &gT,const float &nR);
+			unsigned long &gT,const float &nR, const float &cD);
 		
 		//Functions
 		void align (float newHeading, byte speed, int count=1);
-		void collisionAvoidance(float minDistance,float speed,unsigned long &loopTimer);
-		void driftCorrection(PID &pid, double &input, double &output, byte speed);
-		bool getDirections(byte speed, int timeout=2000);
+		void collisionAvoidance(float speed,unsigned long &loopTimer);
+		void driftCorrection(byte speed);
+		void drive(byte speed);
+		bool getDirections(byte speed, long timeout=2000);
 		Location localize(byte speed);
 		void print(String info="");
-		int randomWalk(Random &r,byte speed,float std,float collisionDistance,float fenceRadius,bool foodFlag);
+		int randomWalk(Random &r,byte speed,float std,float fenceRadius,bool foodFlag);
 		bool sensorFusion(int n,Location* locs,Covariance* covs,Location &loc_prime,Covariance cov_prime);
-		int serialFind(String msg, int timeout=2000);
-		int serialFind(String msgOne, String msgTwo, int timeout=2000);
+		int serialFind(String msg, long timeout=2000);
+		int serialFind(String msgOne, String msgTwo, long timeout=2000);
 								
 	private:
+		//Functions
+		byte calibrateSpeed(int degrees);
+		void calibrateCompass(byte speed);
+		int countNeighbors(int tagNum);
+		
 		//Pointers to objects
 		Compass *compass;
 		Movement *move;
@@ -94,11 +100,12 @@ class Ant {
 		//Pointers to variables
 		unsigned long *globalTimer;
 		const float *nestRadius;
+		const float *collisionDistance;
 		
-		//Functions
-		byte calibrateSpeed(int degrees);
-		void calibrateCompass(byte speed);
-		int countNeighbors(int tagNum);
+		//PID controller
+		PID *pid;
+		double input, output, setpoint;
+
 };
 
 #endif

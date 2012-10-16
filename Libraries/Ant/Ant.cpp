@@ -14,10 +14,9 @@ Ant::Ant(){}
 /**
 *	Constructor receives all relevant instantiated base objects
 **/
-Ant::Ant(Compass &co, Movement &m, SoftwareSerial &sS, Ultrasound &ul, Utilities &ut,
-		Location &aL, Location &gL, Location &tL,
-		unsigned long &gT, const float &nR)
-{
+Ant::Ant(Compass &co, Movement &m, SoftwareSerial &sS, Ultrasound &ul, Utilities &ut, Location &aL, 
+		Location &gL, Location &tL, unsigned long &gT, const float &nR, const float &cD) {
+		
 	//Local objects
 	compass = &co;
 	move = &m;
@@ -33,33 +32,34 @@ Ant::Ant(Compass &co, Movement &m, SoftwareSerial &sS, Ultrasound &ul, Utilities
 	//Local variables
 	globalTimer = &gT;
 	nestRadius = &nR;
+	collisionDistance = &cD;
+	
+	//Start PID controller
+	pid = new PID(&input,&output,&setpoint,2,5,1,DIRECT);
+	pid->SetMode(AUTOMATIC);
+	//Initialize settings
+	pid->SetOutputLimits(-127,127);
+	pid->SetSampleTime(50); //ms
 }
 
 /**
-*	Aligns from current heading to new heading at motor speed s
+*	Aligns from current heading to new heading at motor speed
 *	We perform multiple iterations to deal with drift using count (default value is 1)
 **/
-void Ant::align(float newHeading, byte speed, int count)
-{
-	float currentHeading = compass->heading();
-
-	for(int i=0; i<count; i++)
-	{
-		while (fabs(util->angle(currentHeading,newHeading)) >= 1)
-		{
-			while (util->angle(currentHeading,newHeading) <= -1)
-			{
-			  move->rotateLeft(speed);
-			  currentHeading = compass->heading();
+void Ant::align(float newHeading, byte speed, int count) {
+	for(int i=0; i<count; i++) {
+		float currentHeading = compass->heading();
+		while (fabs(util->angle(currentHeading,newHeading)) >= 1) {
+			if (util->angle(currentHeading,newHeading) <= -1) {
+				move->rotateLeft(speed);
+				currentHeading = compass->heading();
 			}
-			while (util->angle(currentHeading,newHeading) >= 1)
-			{
-			  move->rotateRight(speed);
-			  currentHeading = compass->heading();
+			if (util->angle(currentHeading,newHeading) >= 1) {
+				move->rotateRight(speed);
+				currentHeading = compass->heading();
 			}
-			move->stopMove();
-			currentHeading = compass->heading();
 		}
+		move->stopMove();
 	}
 }
 
@@ -117,18 +117,18 @@ void Ant::calibrateCompass(byte speed) {
 
 /**
 *	Basic function to avoid obstacles/walls
-*	Arguments are: distance to object (in cm), speed to return to, and pointer to current timer
+*	Arguments are: speed to return to and pointer to current timer
 **/
-void Ant::collisionAvoidance(float boundry,float speed,unsigned long &loopTimer) {
+void Ant::collisionAvoidance(float speed, unsigned long &loopTimer) {
 	//Update absolute location with ground covered since last absolute location update
 	*absLoc = *absLoc + Location(Utilities::Polar((millis()-loopTimer)*37.7/1000, tempLoc->pol.theta));
 	
-	//Loop as long as object is found within boundry
-	while (us->collisionDetection(boundry)) {	
+	//Loop as long as object is found within collisionDistance
+	while (us->collisionDetection(*collisionDistance)) {	
 		delay(50);
-		//Check for objects within boundry while also compensating for change in facing angle
-		while (us->collisionDetection(boundry*2)) {
-			move->rotateRight(80);
+		//Check for objects within collisionDistance while also compensating for change in facing angle
+		while (us->collisionDetection(*collisionDistance * 2)) {
+			move->rotateRight(70);
 			delay(50);
 		}
 	
@@ -144,17 +144,17 @@ void Ant::collisionAvoidance(float boundry,float speed,unsigned long &loopTimer)
 		
 		//Move to empty location in space discovered above
 		move->forward(speed,speed);
-		delay(boundry/37.7*1000);
+		delay(*collisionDistance/37.7*1000);
 		move->stopMove();
 		
 		//Update absolute location with ground covered during avoidance behavior above
-		*absLoc = *absLoc + Location(Utilities::Polar(boundry,compass->heading()));
+		*absLoc = *absLoc + Location(Utilities::Polar(*collisionDistance,compass->heading()));
 		
 		//Update relative location with distance and angle between absolute location and goal
 		*tempLoc = *goalLoc - *absLoc;
 		
 		//Align toward goal
-		align(tempLoc->pol.theta,80,5);
+		align(tempLoc->pol.theta,70,5);
 		
 		//Reset timer
 		util->tic(tempLoc->pol.r/37.7*1000);
@@ -176,7 +176,7 @@ int Ant::countNeighbors(int firstTag)
 
 	for (int i=1; i<36; i++) {
 		align(util->pmod(compass->heading() + 10,360),70);
-		if (serialFind("yes","no",100) == 1) {
+		if (serialFind("yes","no",200) == 1) {
 			int currentTag = softwareSerial->parseInt();
 			if ((currentTag != firstTag) && (currentTag != lastTag)) {
 				//Count neighboring tag
@@ -194,18 +194,18 @@ int Ant::countNeighbors(int firstTag)
 *	Corrects from motor drift using gyroscope values read on the iDevice
 * 	We use a PID controller to smooth the path of the robot
 **/
-void Ant::driftCorrection(PID &pid, double &input, double &output, byte speed) {
+void Ant::driftCorrection(byte speed) {
 	//Recieve current rotation rate from iDevice
 	input = softwareSerial->parseInt();
 	softwareSerial->read();
 
 	//Execute PID
-	pid.Compute();
+	pid->Compute();
     
     //Move forward, adjusting the power applied to each side of the robot
     //	using the output from the PID
     if (output < 0) {
-    	move->forward(speed+output,speed+output);
+    	move->forward(speed+output,speed);
     }
     else if (output > 0) {
     	move->forward(speed,speed-output);
@@ -216,10 +216,43 @@ void Ant::driftCorrection(PID &pid, double &input, double &output, byte speed) {
 }
 
 /**
+*	Moves the robot from its current location using tempLoc's pol.r (distance) and pol.theta (heading)
+*	**Assumes fixed velocity of 37.7 cm/s**
+**/
+void Ant::drive(byte speed) { 
+    //Align to heading
+    align(tempLoc->pol.theta,70,50);
+    
+    //loopTimer is used to measure distance covered during each iteration of while loop
+    unsigned long loopTimer = millis();
+    
+    //Set setpoint to 0
+    setpoint = 0;
+    
+    //Ask iDevice to enable gyroscope
+    softwareSerial->println("gyro on");
+    serialFind("gyro on");  
+    
+    //Set timer to distance assuming velocity of 37.7 cm/s
+    util->tic(tempLoc->pol.r/37.7*1000);
+    
+    //Drive while adjusting for detected objects and motor drift
+    while (!util->isTime()) {
+    	driftCorrection(120); //correct for motor drift
+    	collisionAvoidance(120,loopTimer); //check for collision; maneuver and update location
+    }
+    
+    move->stopMove();
+    
+    //Ask iDevice to disable gyroscope
+    softwareSerial->println("gyro off");
+}
+
+/**
 *	Receives two-byte tuples from the iDevice and translates them into movement
 *	Function terminates within a set threshold (returns true) or if timeout occcurs (returns false)
 **/
-bool Ant::getDirections(byte speed, int timeout) {
+bool Ant::getDirections(byte speed, long timeout) {
 	//Local variables
 	unsigned long time;
 	int cmd[2] = {INT_MAX, INT_MAX};
@@ -307,7 +340,7 @@ bool Ant::getDirections(byte speed, int timeout) {
 Ant::Location Ant::localize(byte speed) {
 
 	softwareSerial->println("nest on");
-	while (!serialFind("nest on")) {}
+	serialFind("nest on");
 	
 	getDirections(speed);
 	
@@ -357,65 +390,54 @@ void Ant::print(String info) {
 *	Returns boolean representing whether food has been found or not
 *	**Assumes fixed velocity of 25 cm/s**
 **/
-int Ant::randomWalk(Random &r,byte speed,float std,float collisionDistance,float fenceRadius,bool tagFound) {
+int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFound) {
 	//Initialization
 	int count = 1;
 	float heading;
 	int tagNum;
 	int tagNeighbors;
-	bool localizedFlag = false;
 	int stepTimer = 300; //length of step in random walk (ms)
 	randm = &r;
 	
 	//Ask iDevice to enable QR tag searching
 	softwareSerial->println("tag on");
-	while (!serialFind("tag on")) {}
+	serialFind("tag on");
 	
 	//Take steps in a random walk, stop walking with probability 1/10000
 	//New angle is selected from normal distribution with mean = previous angle
 	while (random(0,10000) > 0) {	
-		//pick random heading from normal distribution
-		//if food was previously found at this location, start with wide turning radius and shrink over time
+		//Pick random heading from normal distribution
+		//If food was previously found at this location, start with wide turning radius and shrink over time
 		if (tagFound) {
 			heading = util->pmod(randm->normal(compass->heading(),std + 360/pow(count,2)),360);
 		}
-		//otherwise, use constant 'std' provided
+		//Otherwise, use constant 'std' provided
 		else {
 			heading = util->pmod(randm->normal(compass->heading(),std),360);
 		}
 		
-		//calculate location after next step in random walk
-		*tempLoc = *absLoc + Location(Utilities::Polar((double)stepTimer/1000*25,heading));
-		
-		//if stepping outside of virtual fence, search for nest to ensure correct location
-		//we use a flag to ensure this localizing is only done once each time we're outside the fence
-		if ((tempLoc->pol.r > fenceRadius - 50)  && !localizedFlag){
+		//If we believe we're outside the virtual fence, search for nest to ensure correct location
+		if (absLoc->pol.r > fenceRadius) {
 			//Ask iDevice to disable QR tag searching
 			softwareSerial->println("tag off");
-
-			//ensure correct location
-			*absLoc = localize(70);
+			
+			//Localize to adjust for error
+    		*absLoc = localize(70);
 			
 			//Ask iDevice to enable QR tag searching
 			softwareSerial->println("tag on");
-			while (!serialFind("tag on")) {}
-			
-			//set flag
-			localizedFlag = true;
+			serialFind("tag on");
 		}
 
-		//ensure we are inside virtual fence (otherwise we stay aligned toward the nest)
-		if (absLoc->pol.r < fenceRadius - 50) {
-			//reset flag
-			localizedFlag = false;
-			
+		//If we're inside or at the virtual fence
+		if (absLoc->pol.r <= fenceRadius) {
 			//search for tag during alignment
-			while ((abs(util->angle(compass->heading(),heading))>30) && (!softwareSerial->available())){
+			while ((abs(util->angle(compass->heading(),heading))>10) && (!softwareSerial->available())){
 				if (util->angle(compass->heading(),heading) > 0) {
-					align(util->pmod(compass->heading()+30,360),70,5);
+					align(util->pmod(compass->heading()+10,360),70,5);
 				}	
 				else {
-					align(util->pmod(compass->heading()-30,360),70,5);
+					align(util->pmod(compass->heading()-10,360),70,5);
 				}
 			}
 			
@@ -438,7 +460,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float collisionDistance,float
 					//ensure correct location
 					*absLoc = localize(70);
 					
-					//transmit location and tag info to server
+					//transmit location and tag info to ABS via iDevice
 					print("tag," + String(tagNum) + "," + String(tagNeighbors));
 					
 					return tagNeighbors;
@@ -451,12 +473,29 @@ int Ant::randomWalk(Random &r,byte speed,float std,float collisionDistance,float
 				}
 			}
 			
+			//Ensure iDevice is in tag searching mode
+			softwareSerial->println("tag on");
+			serialFind("tag on");
+			
 			//Complete alignment
 			align(heading,70,5);
 		}
 		
+		//Otherwise
+		else {	
+			//calculate distance and heading to closest point that is 2.5 meters from nest
+			*tempLoc = Location(Utilities::Polar(250,absLoc->pol.theta)) - *absLoc;
+			
+			//drive inside fence
+			drive(120);
+			
+			//Ask iDevice to enable QR tag searching
+			softwareSerial->println("tag on");
+			serialFind("tag on");
+		}
+		
 		//Check collision distance
-		if (!us->collisionDetection(collisionDistance)) {
+		if (!us->collisionDetection(*collisionDistance)) {
 			//send dump to server
 			print();
 			
@@ -499,6 +538,10 @@ int Ant::randomWalk(Random &r,byte speed,float std,float collisionDistance,float
 					align(util->pmod(compass->heading()-180,360),70,5);
 				}
 			}
+			
+			//Ensure iDevice is in tag searching mode
+			softwareSerial->println("tag on");
+			serialFind("tag on");
 			
 			//update current location with information from last leg
 			*absLoc = *absLoc + Location(Utilities::Polar((double)stepTimer/1000*25,heading));
@@ -584,7 +627,7 @@ bool Ant::sensorFusion(int n,Location* locs,Covariance* covs,Location &loc_prime
 *	Designed as a replacement for the built-in function Serial.find()
 *	Checks for a specified message before timing out
 **/
-int Ant::serialFind(String msg, int timeout) {
+int Ant::serialFind(String msg, long timeout) {
 	util->tic(timeout);
 	String cmd = "";
 	
@@ -608,7 +651,7 @@ int Ant::serialFind(String msg, int timeout) {
 *	Overloaded version of serialFind(String msg, int timeout) above
 *	Allows for possibility of two different messages
 **/
-int Ant::serialFind(String msgOne, String msgTwo, int timeout) {
+int Ant::serialFind(String msgOne, String msgTwo, long timeout) {
 	
 	util->tic(timeout);
 	String cmd = "";
@@ -625,7 +668,7 @@ int Ant::serialFind(String msgOne, String msgTwo, int timeout) {
 		}
 		
 		//return 2 if msgTwo was found
-		if (cmd.endsWith(msgTwo)) {
+		else if (cmd.endsWith(msgTwo)) {
 			return 2;
 		}
 	}
