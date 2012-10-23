@@ -124,14 +124,11 @@ void loop()
     //Localize to adjust for error
     absLoc = ant.localize(70);
     
-    //As long as the distance to the goal is greater than 10 cm
-    while ((tempLoc = goalLoc - absLoc).pol.r > 10) {
-      //Drive to goal
-      ant.drive(120);
-      
-      //Localize to adjust for error
-      absLoc = ant.localize(70);
-    }
+    //Calculate distance and heading to goal
+    tempLoc = goalLoc - absLoc;
+    
+    //Drive to goal
+    ant.drive(120);
   }
   
   //Perform random walk with varying turn radius depending on whether food was found on previous trip

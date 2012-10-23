@@ -416,21 +416,30 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 			heading = util->pmod(randm->normal(compass->heading(),std),360);
 		}
 		
-		//If we believe we're outside the virtual fence, search for nest to ensure correct location
+		//If we *believe* we're outside the virtual fence, search for nest to ensure correct location
 		if (absLoc->pol.r > fenceRadius) {
 			//Ask iDevice to disable QR tag searching
 			softwareSerial->println("tag off");
 			
 			//Localize to adjust for error
     		*absLoc = localize(70);
+
+			//If we're less than 50 cm inside the virtual fence
+			if (absLoc->pol.r > fenceRadius - 50) {
+				//calculate distance and heading to closest point that is 50 meters inside the fence
+				*tempLoc = Location(Utilities::Polar(fenceRadius - 50,absLoc->pol.theta)) - *absLoc;
+				
+				//drive inside fence
+				drive(120);
+			}
 			
 			//Ask iDevice to enable QR tag searching
 			softwareSerial->println("tag on");
 			serialFind("tag on");
 		}
-
-		//If we're inside or at the virtual fence
-		if (absLoc->pol.r <= fenceRadius) {
+		
+		//Otherwise
+		else {	
 			//search for tag during alignment
 			while ((abs(util->angle(compass->heading(),heading))>10) && (!softwareSerial->available())){
 				if (util->angle(compass->heading(),heading) > 0) {
@@ -443,6 +452,10 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 			
 			//if iDevice has discovered a tag and has directions available
 			if (softwareSerial->available() && getDirections(70,5000)) {
+				//Notify iDevice of correctly received tag information
+				softwareSerial->println("tag found");
+				serialFind("tag found");
+				
 				//Check iDevice for valid QR tag
 				int result = serialFind("yes","no",5000);
 				
@@ -481,19 +494,6 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 			align(heading,70,5);
 		}
 		
-		//Otherwise
-		else {	
-			//calculate distance and heading to closest point that is 2.5 meters from nest
-			*tempLoc = Location(Utilities::Polar(250,absLoc->pol.theta)) - *absLoc;
-			
-			//drive inside fence
-			drive(120);
-			
-			//Ask iDevice to enable QR tag searching
-			softwareSerial->println("tag on");
-			serialFind("tag on");
-		}
-		
 		//Check collision distance
 		if (!us->collisionDetection(*collisionDistance)) {
 			//send dump to server
@@ -509,6 +509,10 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 			
 			//if iDevice has discovered a tag and has directions available
 			if (softwareSerial->available() && getDirections(70,5000)) {
+				//Notify iDevice of correctly received tag information
+				softwareSerial->println("tag found");
+				serialFind("tag found");
+				
 				//Check iDevice for valid QR tag
 				int result = serialFind("yes","no",5000);
 				
