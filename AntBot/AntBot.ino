@@ -34,7 +34,7 @@ Ant::Location absLoc; //holds absolute location (relative to nest)
 Ant::Location goalLoc; //holds current goal location
 Ant::Location tempLoc; //holds current location (relative to current leg)
 Ant::Location foodLoc; //holds location of last food found
-const float fenceRadius = 300; //radius of virtual fence (cm)
+const float fenceRadius = 500; //radius of virtual fence (cm)
 
 //Servos
 const byte speed_right = 3; //Ardumoto speed, right side
@@ -106,7 +106,7 @@ void loop()
 {
   //We use four location structs:
   //1. goalLoc will hold the location of the goal in relation to the nest (NOTE: A new goal is randomly selected here if food was not found in last search)
-  if (!tagFound) goalLoc = Ant::Location(Utilities::Polar(randm.boundedUniform(nestRadius+collisionDistance,200),randm.boundedUniform(0,359)));
+  if (!tagFound) goalLoc = Ant::Location(Utilities::Polar(randm.boundedUniform(nestRadius+collisionDistance,fenceRadius),randm.boundedUniform(0,359)));
   else goalLoc = foodLoc;
   //2. tempLoc holds distance and heading from the *start* of the current leg to the goal
   tempLoc = goalLoc - absLoc;
