@@ -16,7 +16,7 @@
 class Ultrasound {
 	public:
 		//Constructors
-		Ultrasound(byte usTrigger, byte usEcho, bool simFlag);
+		Ultrasound(byte usTrigger, byte usEcho, bool simFlag, int maxRange);
 		
 		//Functions
 		bool collisionDetection(float boundry);
@@ -30,6 +30,7 @@ class Ultrasound {
 		//Variables
 		byte _usTrigger, _usEcho;
 		bool _simFlag;
+		int _maxRange;
 };
 
 #endif

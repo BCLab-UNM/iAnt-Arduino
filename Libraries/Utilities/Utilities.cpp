@@ -202,3 +202,15 @@ bool Utilities::isTime()
 		return true;
 	}
 }
+
+/**
+*	Implements cumulative probability function for exponential distribution 
+**/
+float Utilities::expcdf(float x) {
+	if (x >= 0) {
+		return (1 - exp(-x));
+	}
+	else {
+		return 0;
+	}
+}

@@ -15,7 +15,7 @@ Ant::Ant(){}
 *	Constructor receives all relevant instantiated base objects
 **/
 Ant::Ant(Compass &co, Movement &m, SoftwareSerial &sS, Ultrasound &ul, Utilities &ut, Location &aL, 
-		Location &gL, Location &tL, unsigned long &gT, const float &nR, const float &cD) {
+		Location &gL, Location &tL, unsigned long &gT, const float &nR, const float &cD, const float &mR) {
 		
 	//Local objects
 	compass = &co;
@@ -33,6 +33,7 @@ Ant::Ant(Compass &co, Movement &m, SoftwareSerial &sS, Ultrasound &ul, Utilities
 	globalTimer = &gT;
 	nestRadius = &nR;
 	collisionDistance = &cD;
+	usMaxRange = &mR;
 	
 	//Start PID controller
 	pid = new PID(&input,&output,&setpoint,2,5,1,DIRECT);
@@ -345,6 +346,9 @@ Ant::Location Ant::localize(byte speed) {
 	getDirections(speed);
 	
 	softwareSerial->println("nest off");
+	
+	//Read nest distance from iDevice (estimated using OpenCV)
+	int cvDistance = softwareSerial->parseInt();
 
 	//We poll the compass here and throw the value away
 	//This ensures the correct value for the location calculation below
@@ -352,8 +356,32 @@ Ant::Location Ant::localize(byte speed) {
 	//****NOTE****
 	//Figure out why the compass gives the wrong value here. 
 	//Does this happen anywhere else?? (see collision_avoidance() above)
-		
-	*tempLoc = Location(Utilities::Polar(us->distance(),compass->heading()));
+	
+	//Read nest distance from ultrasound 
+	int usDistance = us->distance();
+	
+	//If distance is beyond maximum range of ultrasound
+	if (usDistance >= *usMaxRange) {
+		//we use the distance estimated by our computer vision
+		*tempLoc = Location(Utilities::Polar(cvDistance,compass->heading()));
+	}
+	
+	//Otherwise
+	else {
+		//Calculate difference between vision distance and ultrasound distance
+		int diff = fabs(cvDistance - usDistance);
+	
+		//if the vision distance and ultrasound distance differ by more than a meter
+		if (diff > 100) {
+			//we use the distance estimated by our computer vision
+			*tempLoc = Location(Utilities::Polar(cvDistance,compass->heading()));
+		}
+		//otherwise
+		else {
+			//we use the ultrasound distance
+			*tempLoc = Location(Utilities::Polar(usDistance,compass->heading()));
+		}		
+	}
   
 	//Shift object localization to subject localization
 	*tempLoc = Location(Utilities::Polar(tempLoc->pol.r,util->pmod(tempLoc->pol.theta-180,360)));
@@ -365,9 +393,10 @@ Ant::Location Ant::localize(byte speed) {
 }
 
 /**
-*	Dump sensor data to coordination server
+*	Dump comma-separated sensor data to coordination server
 *	Current format: time,x,y
 *	An optional additional string is received as input and appended to main message
+*	Note that MAC address is appended by iDevice
 **/
 void Ant::print(String info) {
 	String msg = "print"
@@ -377,8 +406,9 @@ void Ant::print(String info) {
 					+ ","
 					+ String((int)round(absLoc->cart.y));
 	
-	//If optional additional string is provided, append it to the main string
+	//If optional additional string is provided
 	if (info.length() > 0) {
+		//append it to the main string
 		msg += "," + info;
 	}
 
@@ -414,6 +444,10 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 		//Otherwise, use constant 'std' provided
 		else {
 			heading = util->pmod(randm->normal(compass->heading(),std),360);
+			
+			//We add bias to our new heading to direct the robot back towards the nest
+			float angle = util->angle(heading, util->pmod(absLoc->pol.theta-180,360));
+			heading = util->pmod(heading + util->expcdf((absLoc->pol.r-*usMaxRange)/100)*angle, 360);
 		}
 		
 		//If we *believe* we're outside the virtual fence, search for nest to ensure correct location
@@ -424,15 +458,6 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 			//Localize to adjust for error
     		*absLoc = localize(70);
 
-			//If we're less than 50 cm inside the virtual fence
-			if (absLoc->pol.r > fenceRadius - 50) {
-				//calculate distance and heading to closest point that is 50 meters inside the fence
-				*tempLoc = Location(Utilities::Polar(fenceRadius - 50,absLoc->pol.theta)) - *absLoc;
-				
-				//drive inside fence
-				drive(120);
-			}
-			
 			//Ask iDevice to enable QR tag searching
 			softwareSerial->println("tag on");
 			serialFind("tag on");
@@ -564,69 +589,6 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 	return -1;
 }
 
-bool Ant::sensorFusion(int n,Location* locs,Covariance* covs,Location &loc_prime,Covariance cov_prime) {
-	//Instantiate MatrixMath library
-	MatrixMath math;
-	
-	//Create variables:
-	//accumulators
-	float loc_sum[1][2] = {0,0};
-	float cov_sum[covs[0].m][covs[0].n];
-	//intermediaries
-	float loc_temp[1][2] = {0,0};
-	float loc_fused[1][2] = {0,0};
-	float cov_temp[covs[0].m][covs[0].n];
-	
-	//Initialize
-	for (byte i=0; i<covs[0].m; i++) {
-		for (byte j=0; j<covs[0].n; j++) {
-			cov_sum[i][j] = 0;
-			cov_temp[i][j] = 0;
-		}
-	}
-	
-	//Perform calculation using Bayesian maximum likelihood estimator
-	for (byte i=0; i<n; i++) {
-		//Move required data to temporary storage
-		loc_temp[0][0] = locs[i].cart.x; loc_temp[0][1] = locs[i].cart.y;
-		for (byte j=0; j<covs[i].m; j++) {
-			for (byte k=0; k<covs[i].n; k++) {
-				cov_temp[j][k] = covs[i].matrix[j][k];
-			}
-		}
-		
-		//Multiply location by (inverse) covariance matrix, add to accumulator (numerator)
-		//**if inversion fails (i.e. matrix is singular), return false
-		if (!math.MatrixInvert((float*)cov_temp,covs[0].m)) {
-			return false;
-		}
-		math.MatrixMult((float*)loc_temp,(float*)cov_temp,1,covs[i].m,covs[i].n,(float*)loc_fused);
-		math.MatrixAdd((float*)loc_fused,(float*)loc_sum,1,2,(float*)loc_sum);
-		
-		//Sum covariance matrices to produce normalizing term (denominator)
-		math.MatrixAdd((float*)cov_sum,(float*)cov_temp,covs[i].m,covs[i].n,(float*)cov_sum);
-	}
-	//Calculate inverse of cov_temp
-	//**if inversion fails (i.e. matrix is singular), return false
-	if (!math.MatrixInvert((float*)cov_sum,covs[0].m)) {
-		return false;
-	}
-	//Multiply loc_sum by cov_sum' to produce final location estimate
-	math.MatrixMult((float*)loc_sum,(float*)cov_sum,1,covs[0].m,covs[0].n,(float*)loc_temp);
-	
-	//Assign output variables
-	loc_prime = Location(Utilities::Cartesian(loc_temp[0][0],loc_temp[0][1]));
-	for (byte i=0; i<covs[0].m; i++) {
-		for (byte j=0; j<covs[0].n; j++) {
-			cov_prime.matrix[i][j] = cov_sum[i][j];
-		}
-	}
-	cov_prime.m = covs[0].m;
-	cov_prime.n = covs[0].n;
-	
-	return true;
-}
-
 /**
 *	Designed as a replacement for the built-in function Serial.find()
 *	Checks for a specified message before timing out
@@ -680,3 +642,66 @@ int Ant::serialFind(String msgOne, String msgTwo, long timeout) {
 	//Timeout must have occured, return 0
 	return 0;
 }
+
+// bool Ant::sensorFusion(int n,Location* locs,Covariance* covs,Location &loc_prime,Covariance cov_prime) {
+// 	//Instantiate MatrixMath library
+// 	MatrixMath math;
+// 	
+// 	//Create variables:
+// 	//accumulators
+// 	float loc_sum[1][2] = {0,0};
+// 	float cov_sum[covs[0].m][covs[0].n];
+// 	//intermediaries
+// 	float loc_temp[1][2] = {0,0};
+// 	float loc_fused[1][2] = {0,0};
+// 	float cov_temp[covs[0].m][covs[0].n];
+// 	
+// 	//Initialize
+// 	for (byte i=0; i<covs[0].m; i++) {
+// 		for (byte j=0; j<covs[0].n; j++) {
+// 			cov_sum[i][j] = 0;
+// 			cov_temp[i][j] = 0;
+// 		}
+// 	}
+// 	
+// 	//Perform calculation using Bayesian maximum likelihood estimator
+// 	for (byte i=0; i<n; i++) {
+// 		//Move required data to temporary storage
+// 		loc_temp[0][0] = locs[i].cart.x; loc_temp[0][1] = locs[i].cart.y;
+// 		for (byte j=0; j<covs[i].m; j++) {
+// 			for (byte k=0; k<covs[i].n; k++) {
+// 				cov_temp[j][k] = covs[i].matrix[j][k];
+// 			}
+// 		}
+// 		
+// 		//Multiply location by (inverse) covariance matrix, add to accumulator (numerator)
+// 		//**if inversion fails (i.e. matrix is singular), return false
+// 		if (!math.MatrixInvert((float*)cov_temp,covs[0].m)) {
+// 			return false;
+// 		}
+// 		math.MatrixMult((float*)loc_temp,(float*)cov_temp,1,covs[i].m,covs[i].n,(float*)loc_fused);
+// 		math.MatrixAdd((float*)loc_fused,(float*)loc_sum,1,2,(float*)loc_sum);
+// 		
+// 		//Sum covariance matrices to produce normalizing term (denominator)
+// 		math.MatrixAdd((float*)cov_sum,(float*)cov_temp,covs[i].m,covs[i].n,(float*)cov_sum);
+// 	}
+// 	//Calculate inverse of cov_temp
+// 	//**if inversion fails (i.e. matrix is singular), return false
+// 	if (!math.MatrixInvert((float*)cov_sum,covs[0].m)) {
+// 		return false;
+// 	}
+// 	//Multiply loc_sum by cov_sum' to produce final location estimate
+// 	math.MatrixMult((float*)loc_sum,(float*)cov_sum,1,covs[0].m,covs[0].n,(float*)loc_temp);
+// 	
+// 	//Assign output variables
+// 	loc_prime = Location(Utilities::Cartesian(loc_temp[0][0],loc_temp[0][1]));
+// 	for (byte i=0; i<covs[0].m; i++) {
+// 		for (byte j=0; j<covs[0].n; j++) {
+// 			cov_prime.matrix[i][j] = cov_sum[i][j];
+// 		}
+// 	}
+// 	cov_prime.m = covs[0].m;
+// 	cov_prime.n = covs[0].n;
+// 	
+// 	return true;
+// }

@@ -46,7 +46,9 @@ class Ant {
         			(Utilities::Cartesian(cart.x-new_location.cart.x,cart.y-new_location.cart.y)));
     		}
 		};
-		struct Covariance {
+		
+		//Legacy Structs
+		/*struct Covariance {
 			Covariance(){}
 			Covariance(float a, float b, float c, float d) {
 				matrix[0][0] = a;
@@ -57,13 +59,13 @@ class Ant {
 			}
 			float matrix[2][2];
 			int m,n;
-		};
+		};*/
 		
 		//Constructors
 		Ant();
 		Ant(Compass &co,Movement &m,SoftwareSerial &sS,Ultrasound &ul,Utilities &ut,
 			Location &aL,Location &gL,Location &tL,
-			unsigned long &gT,const float &nR, const float &cD);
+			unsigned long &gT,const float &nR, const float &cD, const float &mR);
 		
 		//Functions
 		void align (float newHeading, byte speed, int count=1);
@@ -74,9 +76,11 @@ class Ant {
 		Location localize(byte speed);
 		void print(String info="");
 		int randomWalk(Random &r,byte speed,float std,float fenceRadius,bool foodFlag);
-		bool sensorFusion(int n,Location* locs,Covariance* covs,Location &loc_prime,Covariance cov_prime);
 		int serialFind(String msg, long timeout=2000);
 		int serialFind(String msgOne, String msgTwo, long timeout=2000);
+		
+		//Legacy Functions
+		//bool sensorFusion(int n,Location* locs,Covariance* covs,Location &loc_prime,Covariance cov_prime);
 								
 	private:
 		//Functions
@@ -101,6 +105,7 @@ class Ant {
 		unsigned long *globalTimer;
 		const float *nestRadius;
 		const float *collisionDistance;
+		const float *usMaxRange;
 		
 		//PID controller
 		PID *pid;

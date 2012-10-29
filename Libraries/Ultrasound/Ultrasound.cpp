@@ -7,15 +7,16 @@
 #include <Ultrasound.h>
 
 /**
-*	Constructor args are pins for trigger, echo, instantions of Compass and Movement classes
-*	and last arg for pin for use in single wire mode (see initial comment block)
+*	Constructor args are pins for trigger and echo, a flag denoting simulator mode, and
+*	the maximum range of the ultraound
 **/
-Ultrasound::Ultrasound(byte usTrigger, byte usEcho, bool simFlag) {
+Ultrasound::Ultrasound(byte usTrigger, byte usEcho, bool simFlag, int maxRange) {
 	pinMode(usTrigger, OUTPUT);
 	pinMode(usEcho, INPUT);
 	_usTrigger = usTrigger;
 	_usEcho = usEcho;
 	_simFlag = simFlag;
+	_maxRange = maxRange;
 }
 
 /**
@@ -48,8 +49,8 @@ float Ultrasound::distance()
 	//Assumes speed of sound of 344.83 m/s
 	int distance = time * (1/29.0);
 
-	//Return distance (we cap this at 400 cm, the maximum rating for the ultrasound)
-	return min(distance,400);
+	//Return distance, capped at maximum range of ultrasound
+	return min(distance,_maxRange);
 }
 
 ///////////////////

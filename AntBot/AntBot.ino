@@ -7,7 +7,6 @@
 #include <Wire.h> //Interface for compass
 
 //Libraries acquired from elsewhere
-#include <MatrixMath.h>
 #include <PID_v1.h>
 #include <Random.h>
 
@@ -49,9 +48,9 @@ const byte ssTx = 5;
 //Ultrasound
 const byte usEcho = 16; //Ultrasonic echo pin
 const byte usTrigger = 17; //Ultrasonic trigger pin
+const byte usMaxRange = 300; //limit of ultrasound (we ignore any values returned above this threshold)
 const float collisionDistance = 30; //threshold distance for collision recognition (cm)
 const float nestRadius = 8; //radius of the nest (cm)
-Ant::Covariance usCov = Ant::Covariance(1.9390,-0.5570,-0.5570,0.3142); //ultrasound covariance matrix
 
 //Other
 unsigned long globalTimer; //holds start time of current run
@@ -64,9 +63,9 @@ SoftwareSerial softwareSerial(ssRx,ssTx);
 Utilities util;
 Compass compass = Compass(util);
 Movement move = Movement(speed_right,speed_left,dir_right,dir_left,simFlag);
-Ultrasound us = Ultrasound(usTrigger,usEcho,simFlag);
+Ultrasound us = Ultrasound(usTrigger,usEcho,simFlag,usMaxRange);
 Random randm;
-Ant ant = Ant(compass,move,softwareSerial,us,util,absLoc,goalLoc,tempLoc,globalTimer,nestRadius,collisionDistance);
+Ant ant = Ant(compass,move,softwareSerial,us,util,absLoc,goalLoc,tempLoc,globalTimer,nestRadius,collisionDistance,usMaxRange);
 
 
 /////////////
@@ -77,7 +76,7 @@ void setup()
 {
   //Open local serial connection for debugging
   Serial.begin(9600);
-
+ 
   //Open serial connection to iDevice
   softwareSerial.begin(9600);
 
@@ -110,7 +109,7 @@ void loop()
   else goalLoc = foodLoc;
   //2. tempLoc holds distance and heading from the *start* of the current leg to the goal
   tempLoc = goalLoc - absLoc;
-  //3. absLoc holds the location of the robot relative to the net
+  //3. absLoc holds the location of the robot relative to the nest
   //4. foodLoc holds the location of any food discovered while searching
   
   //Dump to ABS
@@ -118,18 +117,6 @@ void loop()
     
   //Drive to goal
   ant.drive(120);
-  
-  //If we are trying to reach a known food location (and we are not in simulation mode)
-  if (tagFound && !simFlag) {
-    //Localize to adjust for error
-    absLoc = ant.localize(70);
-    
-    //Calculate distance and heading to goal
-    tempLoc = goalLoc - absLoc;
-    
-    //Drive to goal
-    ant.drive(120);
-  }
   
   //Perform random walk with varying turn radius depending on whether food was found on previous trip
   tagNeighbors = ant.randomWalk(randm,60,22.5,fenceRadius,tagFound);
