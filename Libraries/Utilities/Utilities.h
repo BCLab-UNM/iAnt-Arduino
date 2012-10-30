@@ -44,7 +44,7 @@ class Utilities
 		void onLED(byte pinLED);
 		void offLED(byte pinLED);
 		float pmod(float dividend, float divisor);
-		float expcdf(float x);
+		float expCDF(float x, float lambda=1);
 		
 		//Timer functions
 		void tic();

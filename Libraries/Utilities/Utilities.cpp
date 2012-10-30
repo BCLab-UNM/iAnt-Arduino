@@ -204,11 +204,12 @@ bool Utilities::isTime()
 }
 
 /**
-*	Implements cumulative probability function for exponential distribution 
+*	Implements cumulative probability function for exponential distribution
+*	Lambda term defaults to 1
 **/
-float Utilities::expcdf(float x) {
+float Utilities::expCDF(float x, float lambda) {
 	if (x >= 0) {
-		return (1 - exp(-x));
+		return (1 - exp(-lambda*x));
 	}
 	else {
 		return 0;

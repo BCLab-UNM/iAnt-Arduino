@@ -427,6 +427,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 	int tagNum;
 	int tagNeighbors;
 	int stepTimer = 300; //length of step in random walk (ms)
+	unsigned long localizationTimer = millis(); //time since last localization
 	randm = &r;
 	
 	//Ask iDevice to enable QR tag searching
@@ -435,11 +436,13 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 	
 	//Take steps in a random walk, stop walking with probability 1/10000
 	//New angle is selected from normal distribution with mean = previous angle
-	while (random(0,10000) > 0) {	
-		//Pick random heading from normal distribution
-		//If food was previously found at this location, start with wide turning radius and shrink over time
-		if (tagFound) {
-			heading = util->pmod(randm->normal(compass->heading(),std + 360/pow(count,2)),360);
+	while (random(0,10000) > 0) {
+		float deviation = 360/pow(count,2);
+		
+		//If food was previously found at this location and calculated deviation is at least .001
+		if (tagFound && (deviation > .001)) {
+			//start with wide turning radius and shrink over time
+			heading = util->pmod(randm->normal(compass->heading(),std + deviation),360);
 		}
 		//Otherwise, use constant 'std' provided
 		else {
@@ -447,11 +450,11 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 			
 			//We add bias to our new heading to direct the robot back towards the nest
 			float angle = util->angle(heading, util->pmod(absLoc->pol.theta-180,360));
-			heading = util->pmod(heading + util->expcdf((absLoc->pol.r-*usMaxRange)/100)*angle, 360);
+			heading = util->pmod(heading + util->expCDF((absLoc->pol.r-*usMaxRange)/100)*angle, 360);
 		}
 		
-		//If we *believe* we're outside the virtual fence, search for nest to ensure correct location
-		if (absLoc->pol.r > fenceRadius) {
+		//Likelihood of localizing increases exponentially until it occurs
+		if (randm->uniform() < util->expCDF(millis()-localizationTimer, 0.001)) {
 			//Ask iDevice to disable QR tag searching
 			softwareSerial->println("tag off");
 			
@@ -461,63 +464,62 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 			//Ask iDevice to enable QR tag searching
 			softwareSerial->println("tag on");
 			serialFind("tag on");
+			
+			localizationTimer = millis();
 		}
 		
-		//Otherwise
-		else {	
-			//search for tag during alignment
-			while ((abs(util->angle(compass->heading(),heading))>10) && (!softwareSerial->available())){
-				if (util->angle(compass->heading(),heading) > 0) {
-					align(util->pmod(compass->heading()+10,360),70,5);
-				}	
-				else {
-					align(util->pmod(compass->heading()-10,360),70,5);
-				}
+		//Search for tag during alignment
+		while ((abs(util->angle(compass->heading(),heading))>10) && (!softwareSerial->available())){
+			if (util->angle(compass->heading(),heading) > 0) {
+				align(util->pmod(compass->heading()+10,360),70,5);
+			}	
+			else {
+				align(util->pmod(compass->heading()-10,360),70,5);
 			}
-			
-			//if iDevice has discovered a tag and has directions available
-			if (softwareSerial->available() && getDirections(70,5000)) {
-				//Notify iDevice of correctly received tag information
-				softwareSerial->println("tag found");
-				serialFind("tag found");
-				
-				//Check iDevice for valid QR tag
-				int result = serialFind("yes","no",5000);
-				
-				//If iDevice sent "yes"
-				if (result == 1) {
-					//record tag number
-					tagNum = softwareSerial->parseInt();
-					
-					//count number of neighboring tags
-					tagNeighbors = countNeighbors(tagNum);
-					
-					//Ask iDevice to disable QR tag searching
-					softwareSerial->println("tag off");
-					
-					//ensure correct location
-					*absLoc = localize(70);
-					
-					//transmit location and tag info to ABS via iDevice
-					print("tag," + String(tagNum) + "," + String(tagNeighbors));
-					
-					return tagNeighbors;
-				}
-				
-				//If iDevice sent "no"
-				else if (result == 2) {
-					//Rotate 180 degrees to avoid re-reading tag
-					heading = util->pmod(compass->heading()-180,360);
-				}
-			}
-			
-			//Ensure iDevice is in tag searching mode
-			softwareSerial->println("tag on");
-			serialFind("tag on");
-			
-			//Complete alignment
-			align(heading,70,5);
 		}
+		
+		//If iDevice has discovered a tag and has directions available
+		if (softwareSerial->available() && getDirections(70,5000)) {
+			//Notify iDevice of correctly received tag information
+			softwareSerial->println("tag found");
+			serialFind("tag found");
+			
+			//Check iDevice for valid QR tag
+			int result = serialFind("yes","no",5000);
+			
+			//If iDevice sent "yes"
+			if (result == 1) {
+				//record tag number
+				tagNum = softwareSerial->parseInt();
+				
+				//count number of neighboring tags
+				tagNeighbors = countNeighbors(tagNum);
+				
+				//Ask iDevice to disable QR tag searching
+				softwareSerial->println("tag off");
+				
+				//ensure correct location
+				*absLoc = localize(70);
+				
+				//transmit location and tag info to ABS via iDevice
+				print("tag," + String(tagNum) + "," + String(tagNeighbors));
+				
+				return tagNeighbors;
+			}
+			
+			//If iDevice sent "no"
+			else if (result == 2) {
+				//Rotate 180 degrees to avoid re-reading tag
+				heading = util->pmod(compass->heading()-180,360);
+			}
+		}
+		
+		//Ensure iDevice is in tag searching mode
+		softwareSerial->println("tag on");
+		serialFind("tag on");
+		
+		//Complete alignment
+		align(heading,70,5);
 		
 		//Check collision distance
 		if (!us->collisionDetection(*collisionDistance)) {
