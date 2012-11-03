@@ -427,7 +427,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 	int tagNum;
 	int tagNeighbors;
 	int stepTimer = 300; //length of step in random walk (ms)
-	unsigned long localizationTimer = millis(); //time since last localization
+	unsigned long localizationTimer = millis(); //time of last localization
 	randm = &r;
 	
 	//Ask iDevice to enable QR tag searching
@@ -454,7 +454,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 		}
 		
 		//Likelihood of localizing increases exponentially until it occurs
-		if (randm->uniform() < util->expCDF(millis()-localizationTimer, 0.001)) {
+		if (randm->uniform() < util->expCDF((millis()-localizationTimer)/60000)) {
 			//Ask iDevice to disable QR tag searching
 			softwareSerial->println("tag off");
 			
@@ -465,6 +465,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 			softwareSerial->println("tag on");
 			serialFind("tag on");
 			
+			//Reset timer
 			localizationTimer = millis();
 		}
 		
