@@ -427,7 +427,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 	int tagNum;
 	int tagNeighbors;
 	int stepTimer = 300; //length of step in random walk (ms)
-	unsigned long localizationTimer = millis(); //time of last localization
+	unsigned long localizationTimer = micros(); //time of last localization
 	randm = &r;
 	
 	//Ask iDevice to enable QR tag searching
@@ -450,11 +450,11 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 			
 			//We add bias to our new heading to direct the robot back towards the nest
 			float angle = util->angle(heading, util->pmod(absLoc->pol.theta-180,360));
-			heading = util->pmod(heading + util->expCDF((absLoc->pol.r-*usMaxRange)/100)*angle, 360);
+			heading = util->pmod(heading + util->expCDF((absLoc->pol.r-*usMaxRange)/100.0)*angle, 360);
 		}
 		
 		//Likelihood of localizing increases exponentially until it occurs
-		if (randm->uniform() < util->expCDF((millis()-localizationTimer)/60000)) {
+		if (randm->uniform() < util->expCDF((micros()-localizationTimer)/60000000.0)) {
 			//Ask iDevice to disable QR tag searching
 			softwareSerial->println("tag off");
 			

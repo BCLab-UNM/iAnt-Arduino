@@ -79,7 +79,7 @@ void setup()
  
   //Open serial connection to iDevice
   softwareSerial.begin(9600);
-
+  
   //Request random seed
   softwareSerial.println("seed");
   ant.serialFind("seed");
