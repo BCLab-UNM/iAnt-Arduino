@@ -346,6 +346,7 @@ Ant::Location Ant::localize(byte speed) {
 	getDirections(speed);
 	
 	softwareSerial->println("nest off");
+	serialFind("nest off");
 	
 	//Read nest distance from iDevice (estimated using OpenCV)
 	int cvDistance = softwareSerial->parseInt();
@@ -369,7 +370,7 @@ Ant::Location Ant::localize(byte speed) {
 	//Otherwise
 	else {
 		//Calculate difference between vision distance and ultrasound distance
-		int diff = fabs(cvDistance - usDistance);
+		float diff = fabs(cvDistance - usDistance);
 	
 		//if the vision distance and ultrasound distance differ by more than a meter
 		if (diff > 100) {
@@ -454,7 +455,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 		}
 		
 		//Likelihood of localizing increases exponentially until it occurs
-		if (randm->uniform() < util->expCDF((micros()-localizationTimer)/60000000.0)) {
+		if (randm->uniform() < util->expCDF((micros()-localizationTimer)/60000000.0),5.0) {
 			//Ask iDevice to disable QR tag searching
 			softwareSerial->println("tag off");
 			
@@ -466,7 +467,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 			serialFind("tag on");
 			
 			//Reset timer
-			localizationTimer = millis();
+			localizationTimer = micros();
 		}
 		
 		//Search for tag during alignment
