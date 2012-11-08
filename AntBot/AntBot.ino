@@ -48,7 +48,7 @@ const byte ssTx = 5;
 //Ultrasound
 const byte usEcho = 16; //Ultrasonic echo pin
 const byte usTrigger = 17; //Ultrasonic trigger pin
-const int usMaxRange = 300; //limit of ultrasound (cm) (we ignore any values returned above this threshold)
+const float usMaxRange = 300; //limit of ultrasound (cm) (we ignore any values returned above this threshold)
 const float collisionDistance = 30; //threshold distance for collision recognition (cm)
 const float nestRadius = 8; //radius of the nest (cm)
 
@@ -76,7 +76,7 @@ void setup()
 {
   //Open local serial connection for debugging
   Serial.begin(9600);
- 
+
   //Open serial connection to iDevice
   softwareSerial.begin(9600);
   

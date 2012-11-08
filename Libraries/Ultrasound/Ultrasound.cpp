@@ -10,7 +10,7 @@
 *	Constructor args are pins for trigger and echo, a flag denoting simulator mode, and
 *	the maximum range of the ultraound
 **/
-Ultrasound::Ultrasound(byte usTrigger, byte usEcho, bool simFlag, int maxRange) {
+Ultrasound::Ultrasound(byte usTrigger, byte usEcho, bool simFlag, float maxRange) {
 	pinMode(usTrigger, OUTPUT);
 	pinMode(usEcho, INPUT);
 	_usTrigger = usTrigger;

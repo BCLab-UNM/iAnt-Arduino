@@ -441,7 +441,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 		float deviation = 360/pow(count,2);
 		
 		//If food was previously found at this location and calculated deviation is at least .001
-		if (tagFound && (deviation > .001)) {
+		if (tagFound && (deviation > 0.5)) {
 			//start with wide turning radius and shrink over time
 			heading = util->pmod(randm->normal(compass->heading(),std + deviation),360);
 		}
@@ -455,7 +455,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 		}
 		
 		//Likelihood of localizing increases exponentially until it occurs
-		if (randm->uniform() < util->expCDF((micros()-localizationTimer)/60000000.0),5.0) {
+		if (0.6 < util->expCDF((micros()-localizationTimer)/60000000.0)) {
 			//Ask iDevice to disable QR tag searching
 			softwareSerial->println("tag off");
 			
