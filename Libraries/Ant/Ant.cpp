@@ -14,8 +14,9 @@ Ant::Ant(){}
 /**
 *	Constructor receives all relevant instantiated base objects
 **/
-Ant::Ant(Compass &co, Movement &m, SoftwareSerial &sS, Ultrasound &ul, Utilities &ut, Location &aL, 
-		Location &gL, Location &tL, unsigned long &gT, const float &nR, const float &cD, const float &mR) {
+Ant::Ant(Compass &co, Movement &m, SoftwareSerial &sS, Ultrasound &ul, Utilities &ut, 
+		Location &aL, Location &gL, Location &tL,
+		unsigned long &gT, const float &nR, const float &cD, const float &mR, const byte &tS) {
 		
 	//Local objects
 	compass = &co;
@@ -34,6 +35,7 @@ Ant::Ant(Compass &co, Movement &m, SoftwareSerial &sS, Ultrasound &ul, Utilities
 	nestRadius = &nR;
 	collisionDistance = &cD;
 	usMaxRange = &mR;
+	tagStatus = &tS;
 	
 	//Start PID controller
 	pid = new PID(&input,&output,&setpoint,2,5,1,DIRECT);
@@ -220,15 +222,20 @@ void Ant::driftCorrection(byte speed) {
 *	Moves the robot from its current location using tempLoc's pol.r (distance) and pol.theta (heading)
 *	**Assumes fixed velocity of 37.7 cm/s**
 **/
-void Ant::drive(byte speed) { 
-    //Align to heading
-    align(tempLoc->pol.theta,70,50);
-    
+void Ant::drive(byte speed, Utilities::EvolvedParameters &ep, Random &r, bool goingHome) {
+	randm = &r;
+	
     //loopTimer is used to measure distance covered during each iteration of while loop
     unsigned long loopTimer = millis();
     
+    //loopCounter tracks number of times through the while loopTimer
+    int loopCounter = 0;
+    
     //Set setpoint to 0
     setpoint = 0;
+    
+    //Align to heading
+    align(tempLoc->pol.theta,70,50);
     
     //Ask iDevice to enable gyroscope
     softwareSerial->println("gyro on");
@@ -238,11 +245,41 @@ void Ant::drive(byte speed) {
     util->tic(tempLoc->pol.r/37.7*1000);
     
     //Drive while adjusting for detected objects and motor drift
-    while (!util->isTime()) {
-    	driftCorrection(120); //correct for motor drift
+    while (1) {
+    	driftCorrection(120); //correct for motor drift (function takes 50 ms to execute)
     	collisionAvoidance(120,loopTimer); //check for collision; maneuver and update location
+    	
+    	//Increment the loop counter
+		loopCounter++;
+    	
+    	//If we are driving back to the nest, or if we are returning to a known location,
+    	//	and the timer has expired
+    	if ((goingHome || (*tagStatus == 1) || (*tagStatus == 2)) && util->isTime()) {
+    		//Then exit loop
+    		break;
+    	}
+    	
+    	//Otherwise
+    	else {
+    		//If we have executed the loop five times (i.e. 250 ms have passed)
+    		if (loopCounter == 5)
+    		{
+				//If tag status is 0, then we are uninformed and stop driving probabilistically
+				if ((*tagStatus == 0) && (randm->uniform() < ep.walkDropRate)) {
+					break;
+				}
+				//If tagStatus is 2, then we are following a pheromone trail and we have a small chance of
+				//	leaving the trail before we reach the end
+				if ((*tagStatus == 2) && (randm->uniform() < ep.trailDropRate)) {
+					break;
+				}
+				
+				loopCounter = 0;
+			}
+    	}
     }
     
+    //Stop movement
     move->stopMove();
     
     //Ask iDevice to disable gyroscope
@@ -338,7 +375,7 @@ bool Ant::getDirections(byte speed, long timeout) {
 *	Search for nest using OpenCV through iDevice
 *	Reset absolute location via compass and ultrasound measurements
 **/
-Ant::Location Ant::localize(byte speed) {
+void Ant::localize(byte speed) {
 
 	softwareSerial->println("nest on");
 	serialFind("nest on");
@@ -369,19 +406,8 @@ Ant::Location Ant::localize(byte speed) {
 	
 	//Otherwise
 	else {
-		//Calculate difference between vision distance and ultrasound distance
-		float diff = fabs(cvDistance - usDistance);
-	
-		//if the vision distance and ultrasound distance differ by more than a meter
-		if (diff > 100) {
-			//we use the distance estimated by our computer vision
-			*tempLoc = Location(Utilities::Polar(cvDistance,compass->heading()));
-		}
-		//otherwise
-		else {
-			//we use the ultrasound distance
-			*tempLoc = Location(Utilities::Polar(usDistance,compass->heading()));
-		}		
+		//we use the ultrasound distance
+		*tempLoc = Location(Utilities::Polar(usDistance,compass->heading()));
 	}
   
 	//Shift object localization to subject localization
@@ -390,7 +416,7 @@ Ant::Location Ant::localize(byte speed) {
 	//Adjust to account for radius of object
 	*tempLoc = *tempLoc + Ant::Location(Utilities::Polar(*nestRadius,tempLoc->pol.theta));
 	
-	return *tempLoc;
+	*absLoc = *tempLoc;
 }
 
 /**
@@ -421,53 +447,56 @@ void Ant::print(String info) {
 *	Returns boolean representing whether food has been found or not
 *	**Assumes fixed velocity of 25 cm/s**
 **/
-int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFound) {
+int Ant::randomWalk(Utilities::EvolvedParameters &ep,Random &r,byte speed, float fenceRadius) {
 	//Initialization
 	int count = 1;
 	float heading;
 	int tagNum;
 	int tagNeighbors;
 	int stepTimer = 300; //length of step in random walk (ms)
-	unsigned long localizationTimer = micros(); //time of last localization
+	int localizationCounter = 0; //time of last localization
 	randm = &r;
 	
 	//Ask iDevice to enable QR tag searching
 	softwareSerial->println("tag on");
 	serialFind("tag on");
 	
-	//Take steps in a random walk, stop walking with probability 1/10000
+	//Take steps in a random walk, stop walking with probability ep.searchGiveupRate
 	//New angle is selected from normal distribution with mean = previous angle
-	while (random(0,10000) > 0) {
-		float deviation = 360/pow(count,2);
-		
-		//If food was previously found at this location and calculated deviation is at least .001
-		if (tagFound && (deviation > 0.5)) {
+	while (randm->uniform() >= ep.searchGiveupRate) {
+	
+		//If food was previously found at this location (either via site fidelity or pheromones)
+		if (tagStatus > 0) {
+			//calculate additional deviation
+			float deviation = (ep.dirDevCoeff1 * pow(count,ep.dirTimePow1)) + 
+							(ep.dirDevCoeff2 / pow(count,ep.dirTimePow2));
 			//start with wide turning radius and shrink over time
-			heading = util->pmod(randm->normal(compass->heading(),std + deviation),360);
+			heading = util->pmod(randm->normal(compass->heading(),util->rad2deg(ep.dirDevConst + deviation)),360);
 		}
-		//Otherwise, use constant 'std' provided
+		//Otherwise
 		else {
-			heading = util->pmod(randm->normal(compass->heading(),std),360);
-			
-			//We add bias to our new heading to direct the robot back towards the nest
-			float angle = util->angle(heading, util->pmod(absLoc->pol.theta-180,360));
-			heading = util->pmod(heading + util->expCDF((absLoc->pol.r-*usMaxRange)/100.0)*angle, 360);
+			//use constant deviation
+			heading = util->pmod(randm->normal(compass->heading(),util->rad2deg(ep.dirDevConst)),360);
 		}
+		//We add bias to our new heading to direct the robot back towards the nest, but only
+		// if absLoc->pol.r is greater than fenceRadius (i.e. we are outside the virtual fence)
+		float angle = util->angle(heading, util->pmod(absLoc->pol.theta-180,360));
+		heading = util->pmod(heading + util->expCDF((absLoc->pol.r-fenceRadius)/100.0)*angle, 360);
 		
 		//Likelihood of localizing increases exponentially until it occurs
-		if (0.6 < util->expCDF((micros()-localizationTimer)/60000000.0)) {
+		if (randm->uniform() < util->expCDF(localizationCounter,0.02)) {
 			//Ask iDevice to disable QR tag searching
 			softwareSerial->println("tag off");
 			
 			//Localize to adjust for error
-    		*absLoc = localize(70);
+    		localize(70);
 
 			//Ask iDevice to enable QR tag searching
 			softwareSerial->println("tag on");
 			serialFind("tag on");
 			
 			//Reset timer
-			localizationTimer = micros();
+			localizationCounter = 0;
 		}
 		
 		//Search for tag during alignment
@@ -501,7 +530,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 				softwareSerial->println("tag off");
 				
 				//ensure correct location
-				*absLoc = localize(70);
+				localize(70);
 				
 				//transmit location and tag info to ABS via iDevice
 				print("tag," + String(tagNum) + "," + String(tagNeighbors));
@@ -557,7 +586,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 					softwareSerial->println("tag off");
 					
 					//ensure correct location
-					*absLoc = localize(70);
+					localize(70);
 					
 					//transmit location and tag info to server
 					print("tag," + String(tagNum) + "," + String(tagNeighbors));
@@ -580,6 +609,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 			*absLoc = *absLoc + Location(Utilities::Polar((double)stepTimer/1000*25,heading));
 
 			count++;
+			localizationCounter++;
 		}
 	}
 	
@@ -587,7 +617,7 @@ int Ant::randomWalk(Random &r,byte speed,float std,float fenceRadius,bool tagFou
 	softwareSerial->println("tag off");
 	
 	//ensure correct location
-	*absLoc = localize(70);
+	localize(70);
 
 	//negative value indicates no tag found
 	return -1;

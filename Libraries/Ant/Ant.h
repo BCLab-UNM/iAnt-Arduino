@@ -65,17 +65,17 @@ class Ant {
 		Ant();
 		Ant(Compass &co,Movement &m,SoftwareSerial &sS,Ultrasound &ul,Utilities &ut,
 			Location &aL,Location &gL,Location &tL,
-			unsigned long &gT,const float &nR, const float &cD, const float &mR);
+			unsigned long &gT,const float &nR, const float &cD, const float &mR, const byte &tS);
 		
 		//Functions
 		void align (float newHeading, byte speed, int count=1);
 		void collisionAvoidance(float speed,unsigned long &loopTimer);
 		void driftCorrection(byte speed);
-		void drive(byte speed);
+		void drive(byte speed, Utilities::EvolvedParameters &ep, Random &r, bool goingHome);
 		bool getDirections(byte speed, long timeout=2000);
-		Location localize(byte speed);
+		void localize(byte speed);
 		void print(String info="");
-		int randomWalk(Random &r,byte speed,float std,float fenceRadius,bool foodFlag);
+		int randomWalk(Utilities::EvolvedParameters &ep,Random &r,byte speed,float fenceRadius);
 		int serialFind(String msg, long timeout=2000);
 		int serialFind(String msgOne, String msgTwo, long timeout=2000);
 		
@@ -106,6 +106,7 @@ class Ant {
 		const float *nestRadius;
 		const float *collisionDistance;
 		const float *usMaxRange;
+		const byte *tagStatus;
 		
 		//PID controller
 		PID *pid;

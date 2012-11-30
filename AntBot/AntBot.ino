@@ -24,8 +24,28 @@
 //Simulator (set flag to true for simulator mode, false otherwise)
 bool simFlag = false;
 
+//Parameters evolved by GA
+float decayRate = 0.0;
+float trailDropRate = 0.0;
+float walkDropRate = 0.0;
+float searchGiveupRate = 0.0;		
+float dirDevConst = 0.0;
+float dirDevCoeff1 = 0.0;
+float dirTimePow1 = 0.0;
+float dirDevCoeff2 = 0.0;
+float dirTimePow2 = 0.0;
+float densityThreshold = 0.0;
+float densitySensitivity = 0.0;
+float densityConstant = 0.0;	
+float densityPatchThreshold = 0.0;
+float densityPatchConstant = 0.0;
+float densityInfluenceThreshold = 0.0;
+float densityInfluenceConstant = 0.0;
+Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(decayRate, trailDropRate, walkDropRate, searchGiveupRate, dirDevConst, dirDevCoeff1, dirDevCoeff2, dirTimePow1, dirTimePow2, 
+                                  densityThreshold, densitySensitivity, densityConstant, densityPatchThreshold, densityPatchConstant, densityInfluenceThreshold, densityInfluenceConstant);
+
 //Food
-bool tagFound = false; //indicates whether tag has been found while searching
+byte tagStatus = 0; //indicates whether tag has been found while searching (0 = no tag, 1 = tag found, 2 = pheromone received)
 int tagNeighbors = -1; //holds number of neighboring tags found near tag (negative value indicates no tag found)
 
 //Location
@@ -65,7 +85,7 @@ Compass compass = Compass(util);
 Movement move = Movement(speed_right,speed_left,dir_right,dir_left,simFlag);
 Ultrasound us = Ultrasound(usTrigger,usEcho,simFlag,usMaxRange);
 Random randm;
-Ant ant = Ant(compass,move,softwareSerial,us,util,absLoc,goalLoc,tempLoc,globalTimer,nestRadius,collisionDistance,usMaxRange);
+Ant ant = Ant(compass,move,softwareSerial,us,util,absLoc,goalLoc,tempLoc,globalTimer,nestRadius,collisionDistance,usMaxRange,tagStatus);
 
 
 /////////////
@@ -74,9 +94,6 @@ Ant ant = Ant(compass,move,softwareSerial,us,util,absLoc,goalLoc,tempLoc,globalT
 
 void setup()
 {
-  //Open local serial connection for debugging
-  Serial.begin(9600);
-
   //Open serial connection to iDevice
   softwareSerial.begin(9600);
   
@@ -94,7 +111,7 @@ void setup()
   compass.heading();
 
   //Localize to find starting point
-  absLoc = ant.localize(70);
+  ant.localize(70);
 }
 
 /////////////////
@@ -105,7 +122,7 @@ void loop()
 {
   //We use four location structs:
   //1. goalLoc will hold the location of the goal in relation to the nest (NOTE: A new goal is randomly selected here if food was not found in last search)
-  if (!tagFound) goalLoc = Ant::Location(Utilities::Polar(randm.boundedUniform(nestRadius+collisionDistance,fenceRadius),randm.boundedUniform(0,359)));
+  if (tagStatus == 0) goalLoc = Ant::Location(Utilities::Polar(fenceRadius,randm.boundedUniform(0,359)));
   else goalLoc = foodLoc;
   //2. tempLoc holds distance and heading from the *start* of the current leg to the goal
   tempLoc = goalLoc - absLoc;
@@ -116,34 +133,30 @@ void loop()
   ant.print();
     
   //Drive to goal
-  ant.drive(120);
+  ant.drive(120,ep,randm,false);
   
   //Perform random walk with varying turn radius depending on whether food was found on previous trip
-  tagNeighbors = ant.randomWalk(randm,60,22.5,fenceRadius,tagFound);
+  tagNeighbors = ant.randomWalk(ep,randm,60,fenceRadius);
   
   //If tagNeighbors is 0 or more
-  if (tagNeighbors >= 0) {
-    //Then at least one tag was found
-    tagFound = true;
+  if ((tagNeighbors >= 0) && (randm.uniform() <= (tagNeighbors/ep.densityPatchThreshold + ep.densityPatchConstant))) {
+    //Then a tag was collected
+    tagStatus = 1;
+    //Record its location
+    foodLoc = absLoc;
   }
   //Otherwise
   else {
-    //No tags were found
-    tagFound = false;
+    //No tags were collected
+    tagStatus = 0;
   }
   
   //Adjust location structs
   goalLoc = Ant::Location(Utilities::Polar(nestRadius+collisionDistance,absLoc.pol.theta));
   tempLoc = goalLoc - absLoc;
   
-  //If food was found
-  if (tagFound) {
-    //Record its location
-    foodLoc = absLoc;
-  }
-  
   //Drive to nest
-  ant.drive(120);
+  ant.drive(120,ep,randm,true);
   
   //Signal ABS via iDevice of arrival at nest
   ant.print("home");
@@ -151,7 +164,7 @@ void loop()
   //Request virtual pheromone location from iDevice
   softwareSerial.println("pheromone on");
  
-  if (tagNeighbors <= 0)
+  if (randm.uniform() >= (tagNeighbors/ep.densityInfluenceThreshold + ep.densityInfluenceConstant))
   {
     //Check for new virtual pheromone location from iDevice
     //If timeout occurs, we assume no location is available
@@ -160,7 +173,7 @@ void loop()
       foodLoc.cart.x = softwareSerial.parseInt();
       softwareSerial.read();
       foodLoc.cart.y = softwareSerial.parseInt();
-      tagFound = true;
+      tagStatus = 2;
     }
   }
   

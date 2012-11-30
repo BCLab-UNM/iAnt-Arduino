@@ -1,8 +1,8 @@
-/* Library for Utility functions related to AntBot project
-*	Rev 10/23/11
-*	Joshua Hecker
-*/
-
+/**
+*	Library for Utility functions related to AntBot project
+*	Created by Joshua Hecker
+*	Moses Lab, Department of Computer Science, University of New Mexico
+**/
 
 #include <Utilities.h>
 
@@ -75,82 +75,6 @@ Utilities::Polar Utilities::cart2pol(Utilities::Cartesian cart)
 	}
 }
 
-/**	
-*	Takes IP address in string form, tokenizes it using a user-selected delimiter,
-*	then converts the string tokens to ints
-*	Returns IP address as 4-element byte array
-**/
-byte* Utilities::parseIP(char* address)
-{
-	//Variables
-	byte* ip = (byte*)calloc(4,sizeof(int));
-	char* pch;
-	char* copy = (char*)calloc(strlen(address)+1,sizeof(int));
-	
-	//Make copy of address to avoid damaging original
-	strcpy(copy,address);
-	
-	//Split address using "." as the delimiter
-	pch = strtok(copy,".");
-	
-	//Convert string to int to produce IP in byte form
-	for (byte i=0; i<4; i++)
-	{
-		ip[i] = atoi(pch);
-		pch = strtok(NULL,".");
-	}
-	
-	//Free memory
-	free(copy);
-	
-	return ip;
-}
-
-/**
-*	Calculates amount of free memory available
-**/
-int Utilities::availableMemory()
-{
-	int size = 1024;
-	byte *buf;
-	
-	while ((buf = (byte *)malloc(--size)) == NULL){}
-	
-	free(buf);
-	return size;
-}
-
-/** 
-* Converts GPS lat/lon pair to polar coordinates (r,theta)
-**/
-Utilities::Polar Utilities::gps2pol(float start_lat, float start_lon, float end_lat, float end_lon)
-{
-	float latSq = pow((end_lat-start_lat),2);
-	float lonSq = pow((end_lon-start_lon),2);
-	
-	float deltPhi = log(tan(end_lat/2+M_PI/4)/tan(start_lat/2+M_PI/4));
-	if (start_lat == end_lat) deltPhi = 0;
-	float deltLon = start_lon - end_lon;
-	
-	return Utilities::Polar(rad2deg(sqrt(latSq+lonSq))*1852,rad2deg(atan2(deltLon, deltPhi))+180);	
-}
-
-/**
-*	Turns LED at specified pin number on
-**/
-void Utilities::onLED(byte pinLED) 
-{
-	digitalWrite(pinLED,HIGH);
-}
-
-/**
-*	Turns LED at specified pin number off
-**/
-void Utilities::offLED(byte pinLED)
-{
-	digitalWrite(pinLED,LOW);
-}
-
 /**
 *	Mod function that behaves as in MATLAB, i.e. returns only positive results
 **/
@@ -215,3 +139,83 @@ float Utilities::expCDF(float x, float lambda) {
 		return 0;
 	}
 }
+
+///////////////////
+////LEGACY CODE////
+///////////////////
+
+// /**	
+// *	Takes IP address in string form, tokenizes it using a user-selected delimiter,
+// *	then converts the string tokens to ints
+// *	Returns IP address as 4-element byte array
+// **/
+// byte* Utilities::parseIP(char* address)
+// {
+// 	//Variables
+// 	byte* ip = (byte*)calloc(4,sizeof(int));
+// 	char* pch;
+// 	char* copy = (char*)calloc(strlen(address)+1,sizeof(int));
+// 	
+// 	//Make copy of address to avoid damaging original
+// 	strcpy(copy,address);
+// 	
+// 	//Split address using "." as the delimiter
+// 	pch = strtok(copy,".");
+// 	
+// 	//Convert string to int to produce IP in byte form
+// 	for (byte i=0; i<4; i++)
+// 	{
+// 		ip[i] = atoi(pch);
+// 		pch = strtok(NULL,".");
+// 	}
+// 	
+// 	//Free memory
+// 	free(copy);
+// 	
+// 	return ip;
+// }
+// 
+// /**
+// *	Calculates amount of free memory available
+// **/
+// int Utilities::availableMemory()
+// {
+// 	int size = 1024;
+// 	byte *buf;
+// 	
+// 	while ((buf = (byte *)malloc(--size)) == NULL){}
+// 	
+// 	free(buf);
+// 	return size;
+// }
+// 
+// /** 
+// * Converts GPS lat/lon pair to polar coordinates (r,theta)
+// **/
+// Utilities::Polar Utilities::gps2pol(float start_lat, float start_lon, float end_lat, float end_lon)
+// {
+// 	float latSq = pow((end_lat-start_lat),2);
+// 	float lonSq = pow((end_lon-start_lon),2);
+// 	
+// 	float deltPhi = log(tan(end_lat/2+M_PI/4)/tan(start_lat/2+M_PI/4));
+// 	if (start_lat == end_lat) deltPhi = 0;
+// 	float deltLon = start_lon - end_lon;
+// 	
+// 	return Utilities::Polar(rad2deg(sqrt(latSq+lonSq))*1852,rad2deg(atan2(deltLon, deltPhi))+180);	
+// }
+// 
+// /**
+// *	Turns LED at specified pin number on
+// **/
+// void Utilities::onLED(byte pinLED) 
+// {
+// 	digitalWrite(pinLED,HIGH);
+// }
+// 
+// /**
+// *	Turns LED at specified pin number off
+// **/
+// void Utilities::offLED(byte pinLED)
+// {
+// 	digitalWrite(pinLED,LOW);
+// }
