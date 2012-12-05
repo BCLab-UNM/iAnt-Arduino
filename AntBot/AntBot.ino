@@ -25,24 +25,18 @@
 bool simFlag = false;
 
 //Parameters evolved by GA
-float decayRate = 0.0;
-float trailDropRate = 0.0;
 float walkDropRate = 0.0;
-float searchGiveupRate = 0.0;		
+float searchGiveupRate = 0.0;
+float trailDropRate = 0.0;		
 float dirDevConst = 0.0;
-float dirDevCoeff1 = 0.0;
-float dirTimePow1 = 0.0;
 float dirDevCoeff2 = 0.0;
 float dirTimePow2 = 0.0;
-float densityThreshold = 0.0;
-float densitySensitivity = 0.0;
-float densityConstant = 0.0;	
 float densityPatchThreshold = 0.0;
 float densityPatchConstant = 0.0;
 float densityInfluenceThreshold = 0.0;
 float densityInfluenceConstant = 0.0;
-Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(decayRate, trailDropRate, walkDropRate, searchGiveupRate, dirDevConst, dirDevCoeff1, dirDevCoeff2, dirTimePow1, dirTimePow2, 
-                                  densityThreshold, densitySensitivity, densityConstant, densityPatchThreshold, densityPatchConstant, densityInfluenceThreshold, densityInfluenceConstant);
+Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(walkDropRate, searchGiveupRate, trailDropRate, dirDevConst, dirDevCoeff2, dirTimePow2, 
+                                  densityPatchThreshold, densityPatchConstant, densityInfluenceThreshold, densityInfluenceConstant);
 
 //Food
 byte tagStatus = 0; //indicates whether tag has been found while searching (0 = no tag, 1 = tag found, 2 = pheromone received)

@@ -29,26 +29,17 @@ class Utilities
 			float r,theta;
 		};
 		struct EvolvedParameters {
-			EvolvedParameters(float dR, float tDR, float wDR, float sGR, float dDC, float dDC1, 
-				float dDC2, float dTP1, float dTP2, float dT, float dS, float dC, float dPT, 
-				float dPC, float dIT, float dIC):
-				decayRate(dR), trailDropRate(tDR), walkDropRate(wDR), searchGiveupRate(sGR),
-				dirDevConst(dDC), dirDevCoeff1(dDC1), dirDevCoeff2(dDC2), dirTimePow1(dTP1),
-				dirTimePow2(dTP2), densityThreshold(dT), densitySensitivity(dS), densityConstant(dC),
-				densityPatchThreshold(dPT), densityPatchConstant(dPC), densityInfluenceThreshold(dIT),
-				densityInfluenceConstant (dIC){}
-			float decayRate;
+			EvolvedParameters(float wDR, float sGR, float tDR, float dDC, float dDC2, float dTP2, 
+						float dPT, float dPC, float dIT, float dIC):
+				walkDropRate(wDR), searchGiveupRate(sGR), trailDropRate(tDR),
+				dirDevConst(dDC), dirDevCoeff2(dDC2), dirTimePow2(dTP2), densityPatchThreshold(dPT), 
+				densityPatchConstant(dPC), densityInfluenceThreshold(dIT), densityInfluenceConstant (dIC){}
 			float trailDropRate;
 			float walkDropRate;
 			float searchGiveupRate;		
 			float dirDevConst;
-			float dirDevCoeff1;
 			float dirDevCoeff2;
-			float dirTimePow1;
-			float dirTimePow2;		
-			float densityThreshold;
-			float densitySensitivity;
-			float densityConstant;
+			float dirTimePow2;
 			float densityPatchThreshold;
 			float densityPatchConstant;
 			float densityInfluenceThreshold;
