@@ -252,31 +252,28 @@ void Ant::drive(byte speed, Utilities::EvolvedParameters &ep, Random &r, bool go
     	//Increment the loop counter
 		loopCounter++;
     	
-    	//If we are driving back to the nest, or if we are returning to a known location,
-    	//	and the timer has expired
-    	if ((goingHome || (*tagStatus == 1) || (*tagStatus == 2)) && util->isTime()) {
+    	//If the timer has expired (i.e. we have reached our goal location)
+    	if (util->isTime()) {
     		//Then exit loop
     		break;
     	}
     	
-    	//Otherwise
-    	else {
-    		//If we have executed the loop five times (i.e. 250 ms have passed)
-    		if (loopCounter == 5)
-    		{
-				//If tag status is 0, then we are uninformed and stop driving probabilistically
-				if ((*tagStatus == 0) && (randm->uniform() < ep.walkDropRate)) {
-					break;
-				}
-				//If tagStatus is 2, then we are following a pheromone trail and we have a small chance of
-				//	leaving the trail before we reach the end
-				if ((*tagStatus == 2) && (randm->uniform() < ep.trailDropRate)) {
-					break;
-				}
-				
-				loopCounter = 0;
+		//If we're not driving back to the nest, 
+		//	and we've executed the while loop five times (i.e. 250 ms have passed)
+		if (!goingHome && (loopCounter == 5))
+		{
+			//If tag status is 0, then we are uninformed and stop driving probabilistically
+			if ((*tagStatus == 0) && (randm->uniform() < ep.walkDropRate)) {
+				break;
 			}
-    	}
+			//If tagStatus is 2, then we are following a pheromone trail and we have a small chance of
+			//	leaving the trail before we reach the end
+			if ((*tagStatus == 2) && (randm->uniform() < ep.trailDropRate)) {
+				break;
+			}
+			
+			loopCounter = 0;
+		}
     }
     
     //Stop movement
@@ -468,8 +465,7 @@ int Ant::randomWalk(Utilities::EvolvedParameters &ep,Random &r,byte speed, float
 		//If food was previously found at this location (either via site fidelity or pheromones)
 		if (tagStatus > 0) {
 			//calculate additional deviation
-			float deviation = (ep.dirDevCoeff1 * pow(count,ep.dirTimePow1)) + 
-							(ep.dirDevCoeff2 / pow(count,ep.dirTimePow2));
+			float deviation = (ep.dirDevCoeff2 / pow(count,ep.dirTimePow2));
 			//start with wide turning radius and shrink over time
 			heading = util->pmod(randm->normal(compass->heading(),util->rad2deg(ep.dirDevConst + deviation)),360);
 		}
