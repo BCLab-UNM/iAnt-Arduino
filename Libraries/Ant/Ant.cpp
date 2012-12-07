@@ -465,7 +465,7 @@ int Ant::randomWalk(Utilities::EvolvedParameters &ep,Random &r,byte speed, float
 		//If food was previously found at this location (either via site fidelity or pheromones)
 		if (*tagStatus > 0) {
 			//calculate additional deviation
-			float deviation = (ep.dirDevCoeff2 / pow(count,ep.dirTimePow2));
+			float deviation = (ep.dirDevCoeff / pow(count,ep.dirTimePow));
 			//start with wide turning radius and shrink over time
 			heading = util->pmod(randm->normal(compass->heading(),util->rad2deg(ep.dirDevConst + deviation)),360);
 		}

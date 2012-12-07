@@ -29,17 +29,17 @@ class Utilities
 			float r,theta;
 		};
 		struct EvolvedParameters {
-			EvolvedParameters(float wDR, float sGR, float tDR, float dDC, float dDC2, float dTP2, 
+			EvolvedParameters(float wDR, float sGR, float tDR, float dDConst, float dDCoeff, float dTP,
 						float dPT, float dPC, float dIT, float dIC):
 				walkDropRate(wDR), searchGiveupRate(sGR), trailDropRate(tDR),
-				dirDevConst(dDC), dirDevCoeff2(dDC2), dirTimePow2(dTP2), densityPatchThreshold(dPT), 
+				dirDevConst(dDConst), dirDevCoeff(dDCoeff), dirTimePow(dTP), densityPatchThreshold(dPT),
 				densityPatchConstant(dPC), densityInfluenceThreshold(dIT), densityInfluenceConstant (dIC){}
 			float trailDropRate;
 			float walkDropRate;
 			float searchGiveupRate;		
 			float dirDevConst;
-			float dirDevCoeff2;
-			float dirTimePow2;
+			float dirDevCoeff;
+			float dirTimePow;
 			float densityPatchThreshold;
 			float densityPatchConstant;
 			float densityInfluenceThreshold;

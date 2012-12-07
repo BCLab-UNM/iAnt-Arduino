@@ -29,13 +29,13 @@ float walkDropRate = 0.0;
 float searchGiveupRate = 0.0;
 float trailDropRate = 0.0;		
 float dirDevConst = 0.0;
-float dirDevCoeff2 = 0.0;
-float dirTimePow2 = 0.0;
+float dirDevCoeff = 0.0;
+float dirTimePow = 0.0;
 float densityPatchThreshold = 0.0;
 float densityPatchConstant = 0.0;
 float densityInfluenceThreshold = 0.0;
 float densityInfluenceConstant = 0.0;
-Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(walkDropRate, searchGiveupRate, trailDropRate, dirDevConst, dirDevCoeff2, dirTimePow2, 
+Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(walkDropRate, searchGiveupRate, trailDropRate, dirDevConst, dirDevCoeff, dirTimePow, 
                                   densityPatchThreshold, densityPatchConstant, densityInfluenceThreshold, densityInfluenceConstant);
 
 //Food
