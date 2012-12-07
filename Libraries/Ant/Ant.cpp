@@ -16,7 +16,7 @@ Ant::Ant(){}
 **/
 Ant::Ant(Compass &co, Movement &m, SoftwareSerial &sS, Ultrasound &ul, Utilities &ut, 
 		Location &aL, Location &gL, Location &tL,
-		unsigned long &gT, const float &nR, const float &cD, const float &mR, const byte &tS) {
+		unsigned long &gT, const float &nR, const float &cD, const float &mR, byte &tS) {
 		
 	//Local objects
 	compass = &co;
@@ -463,7 +463,7 @@ int Ant::randomWalk(Utilities::EvolvedParameters &ep,Random &r,byte speed, float
 	while (randm->uniform() >= ep.searchGiveupRate) {
 	
 		//If food was previously found at this location (either via site fidelity or pheromones)
-		if (tagStatus > 0) {
+		if (*tagStatus > 0) {
 			//calculate additional deviation
 			float deviation = (ep.dirDevCoeff2 / pow(count,ep.dirTimePow2));
 			//start with wide turning radius and shrink over time
