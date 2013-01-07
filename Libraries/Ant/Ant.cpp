@@ -36,13 +36,6 @@ Ant::Ant(Compass &co, Movement &m, SoftwareSerial &sS, Ultrasound &ul, Utilities
 	collisionDistance = &cD;
 	usMaxRange = &mR;
 	tagStatus = &tS;
-	
-	//Start PID controller
-	pid = new PID(&input,&output,&setpoint,2,5,1,DIRECT);
-	pid->SetMode(AUTOMATIC);
-	//Initialize settings
-	pid->SetOutputLimits(-127,127);
-	pid->SetSampleTime(50); //ms
 }
 
 /**
@@ -128,11 +121,9 @@ void Ant::collisionAvoidance(float speed, unsigned long &loopTimer) {
 	
 	//Loop as long as object is found within collisionDistance
 	while (us->collisionDetection(*collisionDistance)) {	
-		delay(50);
 		//Check for objects within collisionDistance while also compensating for change in facing angle
 		while (us->collisionDetection(*collisionDistance * 2)) {
 			move->rotateRight(70);
-			delay(50);
 		}
 	
 		//Wait another half second to ensure horizontal clearance
@@ -194,28 +185,28 @@ int Ant::countNeighbors(int firstTag)
 }
 
 /**
-*	Corrects from motor drift using gyroscope values read on the iDevice
-* 	We use a PID controller to smooth the path of the robot
+*	Maintains headingwhile moving forward at speed by slowing down inner tread 
+*	and speeding up outside tread in proportion to angular error from desired heading
 **/
 void Ant::driftCorrection(byte speed) {
-	//Recieve current rotation rate from iDevice
-	input = softwareSerial->parseInt();
-	softwareSerial->read();
-
-	//Execute PID
-	pid->Compute();
-    
-    //Move forward, adjusting the power applied to each side of the robot
-    //	using the output from the PID
-    if (output < 0) {
-    	move->forward(speed+output,speed);
-    }
-    else if (output > 0) {
-    	move->forward(speed,speed-output);
-    }
-    else {
-    	move->forward(speed,speed);
-    }
+	//Angle offset from correct heading
+	float a = util->angle(compass->heading(),tempLoc->pol.theta);
+	
+	//Check for error in heading
+	while (fabs(a) >= 1) {
+	
+		if (a >= 1) {
+			move->forward(speed,constrain(speed-(a*30),0,255));
+		}
+		else {
+			move->forward(constrain(speed+(a*30),0,255),speed);
+		}
+		
+		a = util->angle(compass->heading(),tempLoc->pol.theta);
+	}
+	
+	//Return to normal speed
+	move->forward(speed,speed);
 }
 
 /**
@@ -225,42 +216,33 @@ void Ant::driftCorrection(byte speed) {
 void Ant::drive(byte speed, Utilities::EvolvedParameters &ep, Random &r, bool goingHome) {
 	randm = &r;
 	
-    //loopTimer is used to measure distance covered during each iteration of while loop
+    //loopTimer is used to measure ground distance covered during each iteration of while loop
+    //This timer is reset after each execution of collisionAvoidance
     unsigned long loopTimer = millis();
     
-    //loopCounter tracks number of times through the while loopTimer
-    int loopCounter = 0;
-    
-    //Set setpoint to 0
-    setpoint = 0;
+    //probabilityTimer is used to ensure probabilistic stop checks occur only every 1/4 of a second
+    //This timer is reset after 250 milliseconds (or more) pass
+    unsigned long probabilityTimer = millis();
     
     //Align to heading
     align(tempLoc->pol.theta,70,50);
-    
-    //Ask iDevice to enable gyroscope
-    softwareSerial->println("gyro on");
-    serialFind("gyro on");  
     
     //Set timer to distance assuming velocity of 37.7 cm/s
     util->tic(tempLoc->pol.r/37.7*1000);
     
     //Drive while adjusting for detected objects and motor drift
     while (1) {
-    	driftCorrection(120); //correct for motor drift (function takes 50 ms to execute)
+    	driftCorrection(120); //correct for motor drift
     	collisionAvoidance(120,loopTimer); //check for collision; maneuver and update location
-    	
-    	//Increment the loop counter
-		loopCounter++;
-    	
+
     	//If the timer has expired (i.e. we have reached our goal location)
     	if (util->isTime()) {
     		//Then exit loop
     		break;
     	}
     	
-		//If we're not driving back to the nest, 
-		//	and we've executed the while loop five times (i.e. 250 ms have passed)
-		if (!goingHome && (loopCounter == 5))
+		//If we're not driving back to the nest, and at least 250 ms have passed
+		if (!goingHome && ((millis() - probabilityTimer) >= 250))
 		{
 			//If tag status is 0, then we are uninformed and stop driving probabilistically
 			if ((*tagStatus == 0) && (randm->uniform() < ep.walkDropRate)) {
@@ -272,15 +254,12 @@ void Ant::drive(byte speed, Utilities::EvolvedParameters &ep, Random &r, bool go
 				break;
 			}
 			
-			loopCounter = 0;
+			probabilityTimer = millis();
 		}
     }
     
     //Stop movement
     move->stopMove();
-    
-    //Ask iDevice to disable gyroscope
-    softwareSerial->println("gyro off");
 }
 
 /**

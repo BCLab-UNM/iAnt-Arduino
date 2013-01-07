@@ -36,6 +36,9 @@ bool Ultrasound::collisionDetection(float boundry)
 **/
 float Ultrasound::distance()
 {
+    //50ms delay to ensure no overlap with previous measurements
+	delay(50);
+    
 	//Trigger pulse
 	digitalWrite(_usTrigger,HIGH);
 	delayMicroseconds(10);
