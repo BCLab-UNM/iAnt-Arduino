@@ -7,7 +7,6 @@
 #include <Wire.h> //Interface for compass
 
 //Libraries acquired from elsewhere
-#include <PID_v1.h>
 #include <Random.h>
 
 //Libraries created for the AntBot project

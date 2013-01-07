@@ -10,7 +10,6 @@
 
 #include <Compass.h>
 #include <Movement.h>
-#include <PID_v1.h>
 #include <Random.h>
 #include <SoftwareSerial.h>
 #include <Ultrasound.h>
@@ -107,11 +106,6 @@ class Ant {
 		const float *collisionDistance;
 		const float *usMaxRange;
 		byte *tagStatus;
-		
-		//PID controller
-		PID *pid;
-		double input, output, setpoint;
-
 };
 
 #endif
