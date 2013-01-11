@@ -104,11 +104,36 @@ byte Ant::calibrateSpeed(int degrees) {
 /**
 *	Auto-calibration of compass rotating at given motor speed
 **/
-void Ant::calibrateCompass(byte speed) {
+void Ant::calibrateCompass() {
+	//Container for message to be passed to iDevice
+	String msg;
+	
+	//Wait 10 seconds to allow setup
+	unsigned long timer = millis();
+	while (millis()-timer < 10000) {
+		msg = "displayCompass calibration: start in ";
+		msg += String((int)ceil((10000 - (millis()-timer))/1000.0));
+		msg += " secs";
+		softwareSerial->println(msg);
+	}
+	
+	//enable calibration mode on compass
 	compass->calibrate_start();
-	move->rotateRight(speed);
-	delay(20000);
+	
+	//Wait 20 seconds for 2 full rotations of robot
+	timer = millis();
+	while (millis()-timer < 20000) {
+		msg = "displayCompass calibrating: ";
+		msg += String((int)ceil((20000 - (millis()-timer))/1000.0));
+		msg += " secs remaining";
+		softwareSerial->println(msg);
+	}
+	
+	//exit calibration mode on compass
 	compass->calibrate_end();
+	//instruct iDevice to display calibration stop message
+	msg = "displayCompass calibration: done";
+	softwareSerial->println(msg);
 }
 
 /**

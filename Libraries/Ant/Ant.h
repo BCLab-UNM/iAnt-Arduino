@@ -68,6 +68,7 @@ class Ant {
 		
 		//Functions
 		void align (float newHeading, byte speed, int count=1);
+		void calibrateCompass();
 		void collisionAvoidance(float speed,unsigned long &loopTimer);
 		void driftCorrection(byte speed);
 		void drive(byte speed, Utilities::EvolvedParameters &ep, Random &r, bool goingHome);
@@ -84,7 +85,6 @@ class Ant {
 	private:
 		//Functions
 		byte calibrateSpeed(int degrees);
-		void calibrateCompass(byte speed);
 		int countNeighbors(int tagNum);
 		
 		//Pointers to objects

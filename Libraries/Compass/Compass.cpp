@@ -56,7 +56,6 @@ void Compass::calibrate()
 **/
 void Compass::calibrate_start()
 {
-	delay(15000);
 	Wire.beginTransmission(com_slave);
   	Wire.write(com_calibration);
   	Wire.endTransmission();
