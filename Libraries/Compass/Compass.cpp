@@ -19,8 +19,10 @@ Compass::Compass(){}
 /**
 *	Constructor takes int arg of led pin used for calibration routine indicator
 **/
-Compass::Compass(Utilities &ut)
+Compass::Compass(Utilities &ut, SoftwareSerial &sS, bool mocapFlag)
 {
+	_mocapFlag = mocapFlag;
+	softwareSerial = &sS;
 	util = &ut;
 	com_slave = com_slave >> 1; //Shift slave address to the right by 1 bit
   	Wire.begin();
@@ -79,30 +81,44 @@ void Compass::calibrate_start()
 *	Internal compass default averages 4 readings.
 *	Function receives optional user input to offset headings
 **/	
-float Compass::heading()
-{
-	//Variables
-	byte MSB,LSB; //Most signifcant bit and least significant bit
-	float heading; //Computed heading value
+float Compass::heading() {
+	//If use motion capture to control robot
+	if (_mocapFlag) {
+		//Request motion capture orientation from iDevice
+		softwareSerial->println("heading");
+		
+		//Receive motion capture orientation from iDevice
+		float heading = softwareSerial->parseFloat();
+		softwareSerial->read();
+		
+		return util->pmod(heading,360);
+	}
 	
-	//Send request
-	Wire.beginTransmission(com_slave);
-	Wire.write(com_read);
-	Wire.endTransmission();
-	
-	//Wait 100 µs for compass to take reading
-	delayMicroseconds(700);
-	
-	//Receive data
-	Wire.requestFrom(com_slave,(byte)2); //Request 2 bytes (MSB and LSB)
-	MSB = Wire.read();
-	LSB = Wire.read();
-	
-	//Compute heading
-	heading = (MSB << 8) + LSB; //Combine MSB and LSB to form compass heading in 10ths of a degree
-	
-	//Return value
-	return util->pmod(heading/10.0,360);
+	//Otherwise
+	else {
+		//Variables
+		byte MSB,LSB; //Most signifcant bit and least significant bit
+		float heading; //Computed heading value
+		
+		//Send request
+		Wire.beginTransmission(com_slave);
+		Wire.write(com_read);
+		Wire.endTransmission();
+		
+		//Wait 100 µs for compass to take reading
+		delayMicroseconds(700);
+		
+		//Receive data
+		Wire.requestFrom(com_slave,(byte)2); //Request 2 bytes (MSB and LSB)
+		MSB = Wire.read();
+		LSB = Wire.read();
+		
+		//Compute heading
+		heading = (MSB << 8) + LSB; //Combine MSB and LSB to form compass heading in 10ths of a degree
+		
+		//Return value
+		return util->pmod(heading/10.0,360);
+	}
 }
 
 ///////////////////

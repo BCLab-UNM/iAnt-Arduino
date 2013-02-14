@@ -64,7 +64,7 @@ class Ant {
 		Ant();
 		Ant(Compass &co,Movement &m,SoftwareSerial &sS,Ultrasound &ul,Utilities &ut,
 			Location &aL,Location &gL,Location &tL,
-			unsigned long &gT,const float &nR, const float &cD, const float &mR, byte &tS);
+			unsigned long &gT,const float &nR, const float &cD, const float &mR, byte &tS, bool &mC);
 		
 		//Functions
 		void align (float newHeading, byte speed, int count=1);
@@ -106,6 +106,7 @@ class Ant {
 		const float *collisionDistance;
 		const float *usMaxRange;
 		byte *tagStatus;
+		bool *motionCapture;
 };
 
 #endif

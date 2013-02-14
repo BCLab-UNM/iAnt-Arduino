@@ -23,17 +23,20 @@
 //Simulator (set flag to true for simulator mode, false otherwise)
 bool simFlag = false;
 
+//Motion Capture (set flag to true if use motion capture to control robot, false otherwise)
+bool mocapFlag = true;
+
 //Parameters evolved by GA
-float walkDropRate = 0.0;
-float searchGiveupRate = 0.0;
-float trailDropRate = 0.0;		
-float dirDevConst = 0.0;
-float dirDevCoeff = 0.0;
-float dirTimePow = 0.0;
-float densityPatchThreshold = 0.0;
-float densityPatchConstant = 0.0;
-float densityInfluenceThreshold = 0.0;
-float densityInfluenceConstant = 0.0;
+float walkDropRate = 0.133447;
+float searchGiveupRate = 0.008831;
+float trailDropRate = 0.001625;		
+float dirDevConst = 0.538335;
+float dirDevCoeff = 2.189899;
+float dirTimePow = 0.016253;
+float densityPatchThreshold = 1.9153;
+float densityPatchConstant = 0.893526;
+float densityInfluenceThreshold = 7.27226;
+float densityInfluenceConstant = -0.111618;
 Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(walkDropRate, searchGiveupRate, trailDropRate, dirDevConst, dirDevCoeff, dirTimePow, 
                                   densityPatchThreshold, densityPatchConstant, densityInfluenceThreshold, densityInfluenceConstant);
 
@@ -46,7 +49,7 @@ Ant::Location absLoc; //holds absolute location (relative to nest)
 Ant::Location goalLoc; //holds current goal location
 Ant::Location tempLoc; //holds current location (relative to current leg)
 Ant::Location foodLoc; //holds location of last food found
-const float fenceRadius = 500; //radius of virtual fence (cm)
+const float fenceRadius = 125; //radius of virtual fence (cm)
 
 //Servos
 const byte speed_right = 3; //Ardumoto speed, right side
@@ -74,11 +77,11 @@ unsigned long globalTimer; //holds start time of current run
 
 SoftwareSerial softwareSerial(ssRx,ssTx);
 Utilities util;
-Compass compass = Compass(util);
+Compass compass = Compass(util,softwareSerial,mocapFlag);
 Movement move = Movement(speed_right,speed_left,dir_right,dir_left,simFlag);
 Ultrasound us = Ultrasound(usTrigger,usEcho,simFlag,usMaxRange);
 Random randm;
-Ant ant = Ant(compass,move,softwareSerial,us,util,absLoc,goalLoc,tempLoc,globalTimer,nestRadius,collisionDistance,usMaxRange,tagStatus);
+Ant ant = Ant(compass,move,softwareSerial,us,util,absLoc,goalLoc,tempLoc,globalTimer,nestRadius,collisionDistance,usMaxRange,tagStatus,mocapFlag);
 
 
 /////////////
@@ -100,11 +103,8 @@ void setup()
   //Start global timer
   globalTimer = micros();
   
-  //Toss first compass reading to ensure correct values elsewhere
-  compass.heading();
-
   //Localize to find starting point
-  ant.localize(70);
+  ant.localize(50);
 }
 
 /////////////////
@@ -153,23 +153,20 @@ void loop()
   
   //Signal ABS via iDevice of arrival at nest
   ant.print("home");
-  
-  //Request virtual pheromone location from iDevice
-  softwareSerial.println("pheromone on");
  
   if (randm.uniform() >= (tagNeighbors/ep.densityInfluenceThreshold + ep.densityInfluenceConstant))
   {
-    //Check for new virtual pheromone location from iDevice
+    //Request virtual pheromone location from iDevice
+    softwareSerial.println("pheromone");
+    
     //If timeout occurs, we assume no location is available
     if (ant.serialFind("pheromone"))
     {
       foodLoc.cart.x = softwareSerial.parseInt();
       softwareSerial.read();
       foodLoc.cart.y = softwareSerial.parseInt();
+      softwareSerial.read();
       tagStatus = 2;
     }
   }
-  
-  //Signal iDevice to disable pheromone check
-  softwareSerial.println("pheromone off");
 }

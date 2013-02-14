@@ -12,7 +12,8 @@
 #else
 #include "WProgram.h"
 #endif
-  
+
+#include <SoftwareSerial.h>
 #include <Wire.h>
 #include <Utilities.h>
 
@@ -21,7 +22,7 @@ class Compass
 	public:
 		//Constructors
 		Compass();
-		Compass(Utilities &ut);
+		Compass(Utilities &ut, SoftwareSerial &sS, bool mocapFlag);
 		
 		//Functions
 		void calibrate();
@@ -36,7 +37,8 @@ class Compass
  		//byte readRAM();
 
 	private:
-		byte _led_grn;
+		bool _mocapFlag;
+		SoftwareSerial *softwareSerial;
 		Utilities *util;
 };
 
