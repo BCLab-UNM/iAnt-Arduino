@@ -28,7 +28,7 @@ bool mocapFlag = true;
 
 //Parameters evolved by GA
 float walkDropRate = 0.133447;
-float searchGiveupRate = 0.008831;
+float searchGiveupRate = 0.075;
 float trailDropRate = 0.001625;		
 float dirDevConst = 0.538335;
 float dirDevCoeff = 2.189899;
@@ -42,7 +42,7 @@ Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(walkDropRate, sea
 
 //Food
 byte tagStatus = 0; //indicates whether tag has been found while searching (0 = no tag, 1 = tag found, 2 = pheromone received)
-int tagNeighbors = -1; //holds number of neighboring tags found near tag (negative value indicates no tag found)
+int tagNeighbors = 0; //holds number of neighboring tags found near tag
 
 //Location
 Ant::Location absLoc; //holds absolute location (relative to nest)
@@ -67,6 +67,7 @@ const byte usTrigger = 17; //Ultrasonic trigger pin
 const float usMaxRange = 300; //limit of ultrasound (cm) (we ignore any values returned above this threshold)
 const float collisionDistance = 30; //threshold distance for collision recognition (cm)
 const float nestRadius = 8; //radius of the nest (cm)
+const float robotRadius = 10.5; //distance from ultrasound sensor to robot's center of rotation
 
 //Other
 unsigned long globalTimer; //holds start time of current run
@@ -81,7 +82,7 @@ Compass compass = Compass(util,softwareSerial,mocapFlag);
 Movement move = Movement(speed_right,speed_left,dir_right,dir_left,simFlag);
 Ultrasound us = Ultrasound(usTrigger,usEcho,simFlag,usMaxRange);
 Random randm;
-Ant ant = Ant(compass,move,softwareSerial,us,util,absLoc,goalLoc,tempLoc,globalTimer,nestRadius,collisionDistance,usMaxRange,tagStatus,mocapFlag);
+Ant ant = Ant(compass,move,softwareSerial,us,util,absLoc,goalLoc,tempLoc,globalTimer,nestRadius,robotRadius,collisionDistance,usMaxRange,tagStatus,mocapFlag);
 
 
 /////////////
@@ -102,9 +103,6 @@ void setup()
 
   //Start global timer
   globalTimer = micros();
-  
-  //Localize to find starting point
-  ant.localize(50);
 }
 
 /////////////////
@@ -113,18 +111,34 @@ void setup()
 
 void loop()
 {
-  //We use four location structs:
-  //1. goalLoc will hold the location of the goal in relation to the nest (NOTE: A new goal is randomly selected here if food was not found in last search)
+  //Localize
+  ant.localize(60);
+  
+  //Signal location to ABS via iDevice
+  ant.print("home");
+ 
+  //If timeout occurs, we assume no location is available
+  if (ant.serialFind("pheromone"))
+  {
+    foodLoc.cart.x = softwareSerial.parseInt();
+    softwareSerial.read();
+    foodLoc.cart.y = softwareSerial.parseInt();
+    softwareSerial.read();
+    
+    //We decide whether to use the pheromone location we've received
+    if (randm.uniform() >= (tagNeighbors/ep.densityInfluenceThreshold + ep.densityInfluenceConstant)) {
+      tagStatus = 2;
+    }
+  }
+  
+  //goalLoc will holds location of the goal in relation to the nest (NOTE: A new goal is randomly selected here if food was not found in last search)
   if (tagStatus == 0) goalLoc = Ant::Location(Utilities::Polar(fenceRadius,randm.boundedUniform(0,359)));
   else goalLoc = foodLoc;
-  //2. tempLoc holds distance and heading from the *start* of the current leg to the goal
+  //tempLoc holds distance and heading from the *start* of the current leg to the goal
   tempLoc = goalLoc - absLoc;
-  //3. absLoc holds the location of the robot relative to the nest
-  //4. foodLoc holds the location of any food discovered while searching
+  //absLoc holds the location of the robot relative to the nest
+  //foodLoc holds the location of any food discovered while searching
   
-  //Dump to ABS
-  ant.print();
-    
   //Drive to goal
   ant.drive(120,ep,randm,false);
   
@@ -150,23 +164,4 @@ void loop()
   
   //Drive to nest
   ant.drive(120,ep,randm,true);
-  
-  //Signal ABS via iDevice of arrival at nest
-  ant.print("home");
- 
-  if (randm.uniform() >= (tagNeighbors/ep.densityInfluenceThreshold + ep.densityInfluenceConstant))
-  {
-    //Request virtual pheromone location from iDevice
-    softwareSerial.println("pheromone");
-    
-    //If timeout occurs, we assume no location is available
-    if (ant.serialFind("pheromone"))
-    {
-      foodLoc.cart.x = softwareSerial.parseInt();
-      softwareSerial.read();
-      foodLoc.cart.y = softwareSerial.parseInt();
-      softwareSerial.read();
-      tagStatus = 2;
-    }
-  }
 }
