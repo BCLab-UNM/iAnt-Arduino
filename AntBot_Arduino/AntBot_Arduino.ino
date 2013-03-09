@@ -24,7 +24,7 @@
 bool simFlag = false;
 
 //Motion Capture (set flag to true if use motion capture to control robot, false otherwise)
-bool mocapFlag = true;
+bool mocapFlag = false;
 
 //Parameters evolved by GA
 float walkDropRate = 0.133447;
