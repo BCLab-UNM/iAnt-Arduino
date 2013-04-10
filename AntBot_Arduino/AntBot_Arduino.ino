@@ -112,7 +112,7 @@ void setup()
 void loop()
 {
   //Localize
-  ant.localize(60);
+  ant.localize();
   
   //Signal location to ABS via iDevice
   ant.print("home");
@@ -140,10 +140,10 @@ void loop()
   //foodLoc holds the location of any food discovered while searching
   
   //Drive to goal
-  ant.drive(120,ep,randm,false);
+  ant.drive(false);
   
   //Perform random walk with varying turn radius depending on whether food was found on previous trip
-  tagNeighbors = ant.randomWalk(ep,randm,60,fenceRadius);
+  tagNeighbors = ant.randomWalk(fenceRadius);
   
   //If tagNeighbors is 0 or more
   if ((tagNeighbors >= 0) && (randm.uniform() < util.exponentialCDF(tagNeighbors + 1, ep.siteFidelityRate))) {
@@ -163,5 +163,5 @@ void loop()
   tempLoc = goalLoc - absLoc;
   
   //Drive to nest
-  ant.drive(120,ep,randm,true);
+  ant.drive(true);
 }
