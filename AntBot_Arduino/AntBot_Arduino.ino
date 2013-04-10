@@ -27,18 +27,15 @@ bool simFlag = false;
 bool mocapFlag = false;
 
 //Parameters evolved by GA
-float walkDropRate = 0.133447;
-float searchGiveupRate = 0.075;
-float trailDropRate = 0.001625;		
-float dirDevConst = 0.538335;
-float dirDevCoeff = 2.189899;
-float dirTimePow = 0.016253;
-float densityPatchThreshold = 1.9153;
-float densityPatchConstant = 0.893526;
-float densityInfluenceThreshold = 7.27226;
-float densityInfluenceConstant = -0.111618;
-Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(walkDropRate, searchGiveupRate, trailDropRate, dirDevConst, dirDevCoeff, dirTimePow, 
-                                  densityPatchThreshold, densityPatchConstant, densityInfluenceThreshold, densityInfluenceConstant);
+float travelGiveUpProbability = 0.0;
+float searchGiveUpProbability = 0.0;	
+float uninformedSearchCorrelation = 0.0;
+float informedSearchCorrelationDecayRate = 0.0;
+float stepSizeVariation = 0.0;
+float siteFidelityRate = 0.0;
+float pheromoneFollowingRate = 0.0;
+Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(travelGiveUpProbability, searchGiveUpProbability, uninformedSearchCorrelation, 
+                                  informedSearchCorrelationDecayRate, stepSizeVariation, siteFidelityRate, pheromoneFollowingRate);
 
 //Food
 byte tagStatus = 0; //indicates whether tag has been found while searching (0 = no tag, 1 = tag found, 2 = pheromone received)
@@ -126,7 +123,7 @@ void loop()
     softwareSerial.read();
     
     //We decide whether to use the pheromone location we've received
-    if (randm.uniform() >= (tagNeighbors/ep.densityInfluenceThreshold + ep.densityInfluenceConstant)) {
+    if ((tagNeighbors == -1) || (randm.uniform() < util.exponentialCDF(9 - tagNeighbors, ep.pheromoneFollowingRate))) {
       tagStatus = 2;
     }
   }
@@ -146,7 +143,7 @@ void loop()
   tagNeighbors = ant.randomWalk(ep,randm,60,fenceRadius);
   
   //If tagNeighbors is 0 or more
-  if ((tagNeighbors >= 0) && (randm.uniform() <= (tagNeighbors/ep.densityPatchThreshold + ep.densityPatchConstant))) {
+  if ((tagNeighbors >= 0) && (randm.uniform() < util.exponentialCDF(tagNeighbors + 1, ep.siteFidelityRate))) {
     //Then a tag was collected
     tagStatus = 1;
     //Record its location
