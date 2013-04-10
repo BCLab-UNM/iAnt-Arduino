@@ -131,13 +131,21 @@ bool Utilities::isTime()
 *	Implements cumulative probability function for exponential distribution
 *	Lambda term defaults to 1
 **/
-float Utilities::expCDF(float x, float lambda) {
+float Utilities::exponentialCDF(float x, float lambda) {
 	if (x >= 0) {
 		return (1 - exp(-lambda*x));
 	}
 	else {
 		return 0;
 	}
+}
+
+/**
+*   Implements exponential decay function
+*   Returns decay of quantity at time given rate of change lambda
+**/
+float Utilities::exponentialDecay(float quantity, float time, float lambda) {
+    return (quantity * exp(-lambda*time));
 }
 
 ///////////////////

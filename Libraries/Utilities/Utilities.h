@@ -36,7 +36,6 @@ class Utilities
 		Utilities::Cartesian pol2cart(Utilities::Polar pol);
 		Utilities::Polar cart2pol(Utilities::Cartesian cart);
 		float pmod(float dividend, float divisor);
-		float expCDF(float x, float lambda=1.0);
 		
 		//Legacy Functions
 		//byte* parseIP(char* address);
@@ -70,6 +69,8 @@ class Utilities
         float siteFidelityRate;
         float pheromoneFollowingRate;
     };
+    float exponentialCDF(float x, float lambda=1.0);
+    float exponentialDecay(float quantity, float time, float lambda);
 };
 
 #endif
