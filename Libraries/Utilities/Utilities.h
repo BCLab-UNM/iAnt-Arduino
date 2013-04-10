@@ -28,23 +28,6 @@ class Utilities
 			Polar(float a, float b):r(a),theta(b){}
 			float r,theta;
 		};
-		struct EvolvedParameters {
-			EvolvedParameters(float wDR, float sGR, float tDR, float dDConst, float dDCoeff, float dTP,
-						float dPT, float dPC, float dIT, float dIC):
-				walkDropRate(wDR), searchGiveupRate(sGR), trailDropRate(tDR),
-				dirDevConst(dDConst), dirDevCoeff(dDCoeff), dirTimePow(dTP), densityPatchThreshold(dPT),
-				densityPatchConstant(dPC), densityInfluenceThreshold(dIT), densityInfluenceConstant (dIC){}
-			float trailDropRate;
-			float walkDropRate;
-			float searchGiveupRate;		
-			float dirDevConst;
-			float dirDevCoeff;
-			float dirTimePow;
-			float densityPatchThreshold;
-			float densityPatchConstant;
-			float densityInfluenceThreshold;
-			float densityInfluenceConstant;
-		};
 		
 		//Functions
 		float angle(float start_angle, float end_angle);
@@ -72,6 +55,21 @@ class Utilities
 		//Timer variables
 		unsigned long timerStart;
 		unsigned long timerStop;
+    struct EvolvedParameters {
+        EvolvedParameters(float tGUP, float sGUP,
+                          float uSC, float iSCDR, float sSV,
+                          float sFR, float pFR):
+        travelGiveUpProbability(tGUP), searchGiveUpProbability(sGUP),
+        uninformedSearchCorrelation(uSC), informedSearchCorrelationDecayRate(iSCDR), stepSizeVariation(sSV),
+        siteFidelityRate(sFR), pheromoneFollowingRate(pFR) {}
+        float travelGiveUpProbability;
+        float searchGiveUpProbability;
+        float uninformedSearchCorrelation;
+        float informedSearchCorrelationDecayRate;
+        float stepSizeVariation;
+        float siteFidelityRate;
+        float pheromoneFollowingRate;
+    };
 };
 
 #endif
