@@ -210,8 +210,8 @@ int Ant::countNeighbors(int firstTag)
 	int tagCount = 0;
 	int lastTag = 0;
 
-	for (int i=1; i<12; i++) {
-		align(util->pmod(compass->heading() + 30,360),60);
+	for (int i=1; i<36; i++) {
+		align(util->pmod(compass->heading() + 10,360),60);
 		if (serialFind("new","old",200) == 1) {
 			int currentTag = softwareSerial->parseInt();
 			softwareSerial->read();
@@ -232,18 +232,28 @@ int Ant::countNeighbors(int firstTag)
 *	and speeding up outside tread in proportion to angular error from desired heading
 **/
 void Ant::driftCorrection(byte speed) {
+	int allowedOffset;
+	
 	//Angle offset from correct heading
 	float angle = util->angle(compass->heading(),tempLoc->pol.theta);
-	
-	if (angle >= 5) {
-		move->forward(speed,constrain(speed-(angle*30),0,255));
+		
+	//If using motion capture to control robot
+	if (*motionCapture) {
+		//Use a looser offset to compensate for delay
+		allowedOffset = 5;
 	}
-	else if (angle <= -5) {
-		move->forward(constrain(speed+(angle*30),0,255),speed);
+	//Otherwise
+	else {
+		//Use tight offset
+		allowedOffset = 1;
 	}
 
-	//Return to normal speed
-	move->forward(speed,speed);
+	if (angle >= allowedOffset) {
+		move->forward(speed,constrain(speed-(angle*7),0,255));
+	}
+	else if (angle <= -allowedOffset) {
+		move->forward(constrain(speed+(angle*7),0,255),speed);
+	}
 }
 
 /**
