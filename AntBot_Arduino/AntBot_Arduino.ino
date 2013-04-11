@@ -23,7 +23,7 @@
 //Simulator (set flag to true for simulator mode, false otherwise)
 bool simFlag = false;
 
-//Motion Capture (set flag to true if use motion capture to control robot, false otherwise)
+//Motion Capture (set flag to true if using motion capture to control robot, false otherwise)
 bool mocapFlag = false;
 
 //Parameters evolved by GA
@@ -125,8 +125,12 @@ void loop()
     foodLoc.cart.y = softwareSerial.parseInt();
     softwareSerial.read();
     
-    //We decide whether to use the pheromone location we've received
-    if ((tagNeighbors == -1) || (randm.uniform() < util.exponentialCDF(9 - tagNeighbors, ep.pheromoneFollowingRate))) {
+    //We decide whether to use the pheromone location we've received:
+    //1. If no tags were found on the previous trip, we follow pheromones by default
+    //2. If we decided to use site fidelity on the previous loop iteration, we don't use pheromones
+    //3. We probabilistically decide to use pheromones (and decide not to use site fidelity)
+    if ((tagNeighbors == -1) || 
+          (((tagStatus != 1) && randm.uniform() < util.exponentialCDF(9 - tagNeighbors, ep.pheromoneFollowingRate)) && (randm.uniform() > util.exponentialCDF(tagNeighbors + 1, ep.siteFidelityRate)))){
       tagStatus = 2;
     }
   }
@@ -145,16 +149,18 @@ void loop()
   //Perform random walk with varying turn radius depending on whether food was found on previous trip
   tagNeighbors = ant.randomWalk(fenceRadius);
   
-  //If tagNeighbors is 0 or more
-  if ((tagNeighbors >= 0) && (randm.uniform() < util.exponentialCDF(tagNeighbors + 1, ep.siteFidelityRate))) {
-    //Then a tag was collected
+  //We decide whether to use site fidelity:
+  //1. If a tag was found, and...
+  //2. If we probabilistically decide to use site fidelity (and decide not to use pheromones)
+  if ((tagNeighbors >= 0) && (randm.uniform() < util.exponentialCDF(tagNeighbors + 1, ep.siteFidelityRate)) && (randm.uniform() > util.exponentialCDF(9 - tagNeighbors, ep.pheromoneFollowingRate))) {
+    //Mark sit fidelity status
     tagStatus = 1;
-    //Record its location
+    //Record tag location
     foodLoc = absLoc;
   }
   //Otherwise
   else {
-    //No tags were collected
+    //Mark new random location status (may change if we received pheromone location from server)
     tagStatus = 0;
   }
   
