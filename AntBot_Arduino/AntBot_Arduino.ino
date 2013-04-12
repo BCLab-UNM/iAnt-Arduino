@@ -46,7 +46,7 @@ Ant::Location absLoc; //holds absolute location (relative to nest)
 Ant::Location goalLoc; //holds current goal location
 Ant::Location tempLoc; //holds current location (relative to current leg)
 Ant::Location foodLoc; //holds location of last food found
-const float fenceRadius = 125; //radius of virtual fence (cm)
+const float fenceRadius = 500; //radius of virtual fence (cm)
 
 //Servos
 const byte speed_right = 3; //Ardumoto speed, right side
