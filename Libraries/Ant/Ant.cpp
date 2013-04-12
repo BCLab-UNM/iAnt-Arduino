@@ -567,7 +567,7 @@ int Ant::randomWalk(float fenceRadius) {
 			//If iDevice sent "old"
 			else if (result == 2) {
 				//Rotate 180 degrees to avoid re-reading tag
-				goalHeading = util->pmod(compass->heading()-180,360);
+                align(util->pmod(compass->heading()-180,360));
 			}
 		}
 		
@@ -592,7 +592,7 @@ int Ant::randomWalk(float fenceRadius) {
 			if (softwareSerial->available() && getDirections(5000)) {
 				//Check buffer for tag status
 				int result = serialFind("new","old",5000);
-				
+
 				//If iDevice sent "new"
 				if (result == 1) {
 					//record tag number
@@ -622,14 +622,11 @@ int Ant::randomWalk(float fenceRadius) {
 			}
 			
 			//update current location with information from last leg
-			*absLoc = *absLoc + Location(Utilities::Polar((double)stepTimer/1000*25,goalHeading));
+			*absLoc = *absLoc + Location(Utilities::Polar((double)stepTimer/1000*25,compass->heading()));
             
 			searchTime++;
 			localizationCounter++;
 		}
-		
-		//Ask iDevice to disable QR tag searching
-		softwareSerial->println("tag off");
 	}
 	
 	//ensure correct location
