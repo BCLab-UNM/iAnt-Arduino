@@ -524,25 +524,25 @@ int Ant::randomWalk(float fenceRadius) {
 		serialFind("tag on");
 		
 		//Search for tag during alignment
-		int result = 0;
-		while (abs(util->angle(currentHeading,goalHeading)) >= 3) {
-			if ((result = serialFind("new","old",1000)) > 0) {
-				break;
-			}
+		while ((abs(util->angle(currentHeading,goalHeading)) >= 1) && (!softwareSerial->available())) {
 			
 			currentHeading = compass->heading();
-			if (util->angle(currentHeading,goalHeading) >= 30) {
-				align(util->pmod(currentHeading + 30,360));
+			if (util->angle(currentHeading,goalHeading) >= 10) {
+				align(util->pmod(currentHeading + 10,360));
 			}
-			else if (util->angle(currentHeading,goalHeading) <= -30) {
-				align(util->pmod(currentHeading - 30,360));
+			else if (util->angle(currentHeading,goalHeading) <= -10) {
+				align(util->pmod(currentHeading - 10,360));
 			}
 			else {
 				align(goalHeading);
 			}
 		}
 		
-		if (result > 0 || ((result = serialFind("new","old",1000)) > 0)) {
+        //If iDevice has discovered a tag and has directions available
+        if (softwareSerial->available() && getDirections(5000)) {
+            //Check iDevice for valid QR tag
+            int result = serialFind("new","old",5000);
+            
 			//If iDevice sent "new"
 			if (result == 1) {
 				//record tag number
@@ -591,7 +591,7 @@ int Ant::randomWalk(float fenceRadius) {
 			//if iDevice has discovered a tag and has directions available
 			if (softwareSerial->available() && getDirections(5000)) {
 				//Check buffer for tag status
-				result = serialFind("new","old",5000);
+				int result = serialFind("new","old",5000);
 				
 				//If iDevice sent "new"
 				if (result == 1) {
