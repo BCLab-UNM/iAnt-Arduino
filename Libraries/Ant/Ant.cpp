@@ -260,6 +260,9 @@ void Ant::driftCorrection() {
 	else if (angle <= -allowedOffset) {
 		move->forward(constrain(*travelSpeed+(angle*7),0,255),*travelSpeed);
 	}
+    else {
+        move->forward(*travelSpeed,*travelSpeed);
+    }
 }
 
 /**
