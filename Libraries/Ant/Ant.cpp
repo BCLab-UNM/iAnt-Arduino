@@ -17,7 +17,7 @@ Ant::Ant(){}
 Ant::Ant(Compass &co, Movement &m, Random &r, SoftwareSerial &sS, Ultrasound &ul, Utilities &ut,
          Location &aL, Location &gL, Location &tL, Utilities::EvolvedParameters &ep,
          unsigned long &gT,const float &nR,const float &rR,const float &cD,
-         const float &mR,byte &tS,bool &mC,byte &tSp,byte &sSp,byte &rSp) {
+         const float &mR,byte &tS,bool &mC,byte &tSp,byte &rSp,const float &tVe) {
     
 	//Local objects
 	compass = &co;
@@ -42,8 +42,8 @@ Ant::Ant(Compass &co, Movement &m, Random &r, SoftwareSerial &sS, Ultrasound &ul
 	tagStatus = &tS;
 	motionCapture = &mC;
     travelSpeed = &tSp;
-    searchSpeed = &sSp;
     rotateSpeed = &rSp;
+    travelVelocity = &tVe;
 }
 
 /**
@@ -164,7 +164,7 @@ void Ant::calibrateCompass() {
  **/
 void Ant::collisionAvoidance(unsigned long &loopTimer) {
 	//Update absolute location with ground covered since last absolute location update
-	*absLoc = *absLoc + Location(Utilities::Polar((millis()-loopTimer)*37.7/1000, tempLoc->pol.theta));
+	*absLoc = *absLoc + Location(Utilities::Polar((millis()-loopTimer)*(*travelVelocity)/1000, tempLoc->pol.theta));
 	
 	//Loop as long as object is found within collisionDistance
 	while (us->collisionDetection(*collisionDistance)) {
@@ -186,7 +186,7 @@ void Ant::collisionAvoidance(unsigned long &loopTimer) {
 		
 		//Move to empty location in space discovered above
 		move->forward(*travelSpeed,*travelSpeed);
-		delay(*collisionDistance/37.7*1000);
+		delay(*collisionDistance/(*travelVelocity)*1000);
 		move->stopMove();
 		
 		//Update absolute location with ground covered during avoidance behavior above
@@ -199,7 +199,7 @@ void Ant::collisionAvoidance(unsigned long &loopTimer) {
 		align(tempLoc->pol.theta);
 		
 		//Reset timer
-		util->tic(tempLoc->pol.r/37.7*1000);
+		util->tic(tempLoc->pol.r/(*travelVelocity)*1000);
 	}
 	
 	//Reset loopTimer
@@ -267,7 +267,6 @@ void Ant::driftCorrection() {
 
 /**
  *	Moves the robot from its current location using tempLoc's pol.r (distance) and pol.theta (heading)
- *	**Assumes fixed velocity of 37.7 cm/s**
  **/
 void Ant::drive(bool goingHome) {
 	
@@ -282,8 +281,8 @@ void Ant::drive(bool goingHome) {
     //Align to heading
     align(tempLoc->pol.theta);
     
-    //Set timer to distance assuming velocity of 37.7 cm/s
-    util->tic(tempLoc->pol.r/37.7*1000);
+    //Set timer to distance
+    util->tic(tempLoc->pol.r/(*travelVelocity)*1000);
     
     //Drive while adjusting for detected objects and motor drift
     while (1) {
@@ -365,10 +364,10 @@ bool Ant::getDirections(long timeout) {
 			}
 			else {
 				if (cmd[1] < 0) {
-					move->backward(*searchSpeed,*searchSpeed);
+					move->backward(*travelSpeed,*travelSpeed);
 				}
 				else if (cmd[1] > 0) {
-					move->forward(*searchSpeed,*searchSpeed);
+					move->forward(*travelSpeed,*travelSpeed);
 				}
 				else {
 					move->stopMove();
@@ -474,7 +473,6 @@ void Ant::print(String info) {
 /**
  *	Performs biased random walk across area
  *	Returns boolean representing whether food has been found or not
- *	**Assumes fixed velocity of 25 cm/s**
  **/
 int Ant::randomWalk(float fenceRadius) {
 	//Initialization
@@ -483,7 +481,7 @@ int Ant::randomWalk(float fenceRadius) {
 	float currentHeading;
 	int tagNum;
 	int tagNeighbors;
-	int stepTimer = 300; //length of step in random walk (ms)
+	int stepTimer = 500; //length of step in random walk (ms)
 	int localizationCounter = 0; //time of last localization
 	
 	//Take steps in a random walk, stop walking with probability evolvedParams->searchGiveUpProbability
@@ -587,7 +585,7 @@ int Ant::randomWalk(float fenceRadius) {
 			util->tic(stepTimer);
 			
 			//drive forward
-			move->forward(*searchSpeed,*searchSpeed);
+			move->forward(*travelSpeed,*travelSpeed);
 			while (!util->isTime() && !softwareSerial->available()) {}
 			move->stopMove();
 			
@@ -625,7 +623,7 @@ int Ant::randomWalk(float fenceRadius) {
 			}
 			
 			//update current location with information from last leg
-			*absLoc = *absLoc + Location(Utilities::Polar((double)stepTimer/1000*25,compass->heading()));
+			*absLoc = *absLoc + Location(Utilities::Polar((double)stepTimer/(*travelVelocity)*1000,compass->heading()));
             
 			searchTime++;
 			localizationCounter++;

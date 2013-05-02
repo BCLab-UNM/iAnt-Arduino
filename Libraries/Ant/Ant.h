@@ -65,7 +65,7 @@ public:
     Ant(Compass &co,Movement &m,Random &r,SoftwareSerial &sS,Ultrasound &ul,Utilities &ut,
         Location &aL,Location &gL,Location &tL,Utilities::EvolvedParameters &ep,
         unsigned long &gT,const float &nR,const float &rR,const float &cD,
-        const float &mR,byte &tS,bool &mC,byte &tSp,byte &sSp,byte &rSp);
+        const float &mR,byte &tS,bool &mC,byte &tSp,byte &rSp,const float &tVe);
     
     //Functions
     void align (float newHeading,int count=1);
@@ -111,8 +111,8 @@ private:
     byte *tagStatus;
     bool *motionCapture;
     byte *travelSpeed;
-    byte *searchSpeed;
     byte *rotateSpeed;
+    const float *travelVelocity;
 };
 
 #endif
