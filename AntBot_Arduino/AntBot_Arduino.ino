@@ -53,9 +53,8 @@ const byte speed_right = 3; //Ardumoto speed, right side
 const byte speed_left = 11; //Ardumoto speed, left side
 const byte dir_right = 12; //Ardumoto direction, right side
 const byte dir_left = 13; //Ardumoto direction, left side
-byte travelSpeed = 120; //motor speed used during traveling behavior
-byte searchSpeed = 60; //motor speed used during search behavior
-byte rotateSpeed = 70; //motor speed used while rotating
+byte travelSpeed = 255; //motor speed used while moving forward/backward
+byte rotateSpeed = 180; //motor speed used while rotating left/right
 
 //SoftwareSerial
 const byte ssRx = 4;
@@ -71,6 +70,7 @@ const float robotRadius = 10.5; //distance from ultrasound sensor to robot's cen
 
 //Other
 unsigned long globalTimer; //holds start time of current run
+const float travelVelocity = 16.3; //speed of robot during travel behavior
 
 ////////////////////////////
 ////Class Instantiations////
@@ -82,7 +82,7 @@ Compass compass = Compass(util,softwareSerial,mocapFlag);
 Movement move = Movement(speed_right,speed_left,dir_right,dir_left,simFlag);
 Ultrasound us = Ultrasound(usTrigger,usEcho,simFlag,usMaxRange);
 Random randm;
-Ant ant = Ant(compass,move,randm,softwareSerial,us,util,absLoc,goalLoc,tempLoc,ep,globalTimer,nestRadius,robotRadius,collisionDistance,usMaxRange,tagStatus,mocapFlag,travelSpeed,searchSpeed,rotateSpeed);
+Ant ant = Ant(compass,move,randm,softwareSerial,us,util,absLoc,goalLoc,tempLoc,ep,globalTimer,nestRadius,robotRadius,collisionDistance,usMaxRange,tagStatus,mocapFlag,travelSpeed,rotateSpeed,travelVelocity);
 
 
 /////////////
