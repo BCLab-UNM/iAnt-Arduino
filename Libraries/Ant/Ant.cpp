@@ -482,7 +482,6 @@ int Ant::randomWalk(float fenceRadius) {
 	int tagNum;
 	int tagNeighbors;
 	int stepTimer = 500; //length of step in random walk (ms)
-	int localizationCounter = 0; //time of last localization
 	
 	//Take steps in a random walk, stop walking with probability evolvedParams->searchGiveUpProbability
 	//New angle is selected from normal distribution
@@ -505,15 +504,6 @@ int Ant::randomWalk(float fenceRadius) {
 		}
         
         goalHeading = util->pmod(currentHeading + util->rad2deg(dTheta),360);
-		
-		//Likelihood of localizing increases exponentially until it occurs
-		if (randm->uniform() < util->exponentialCDF(localizationCounter,0.02)) {
-			//Localize to adjust for error
-    		localize();
-			
-			//Reset timer
-			localizationCounter = 0;
-		}
 		
 		//We add bias to our new heading to direct the robot back towards the nest, but only
 		// if absLoc->pol.r is greater than fenceRadius (i.e. we are outside the virtual fence)
@@ -626,7 +616,6 @@ int Ant::randomWalk(float fenceRadius) {
 			*absLoc = *absLoc + Location(Utilities::Polar((double)stepTimer/(*travelVelocity)*1000,compass->heading()));
             
 			searchTime++;
-			localizationCounter++;
 		}
 	}
 	
