@@ -164,7 +164,7 @@ void Ant::calibrateCompass() {
  **/
 void Ant::collisionAvoidance(unsigned long &loopTimer) {
 	//Update absolute location with ground covered since last absolute location update
-	*absLoc = *absLoc + Location(Utilities::Polar((millis()-loopTimer)*(*travelVelocity)/1000, tempLoc->pol.theta));
+	*absLoc = *absLoc + Location(Utilities::Polar(*travelVelocity*((double)(millis()-loopTimer)/1000), tempLoc->pol.theta));
 	
 	//Loop as long as object is found within collisionDistance
 	while (us->collisionDetection(*collisionDistance)) {
@@ -186,7 +186,7 @@ void Ant::collisionAvoidance(unsigned long &loopTimer) {
 		
 		//Move to empty location in space discovered above
 		move->forward(*travelSpeed,*travelSpeed);
-		delay(*collisionDistance/(*travelVelocity)*1000);
+		delay((*collisionDistance/(*travelVelocity))*1000);
 		move->stopMove();
 		
 		//Update absolute location with ground covered during avoidance behavior above
@@ -199,7 +199,7 @@ void Ant::collisionAvoidance(unsigned long &loopTimer) {
 		align(tempLoc->pol.theta);
 		
 		//Reset timer
-		util->tic(tempLoc->pol.r/(*travelVelocity)*1000);
+		util->tic((tempLoc->pol.r/(*travelVelocity))*1000);
 	}
 	
 	//Reset loopTimer
@@ -282,7 +282,7 @@ void Ant::drive(bool goingHome) {
     align(tempLoc->pol.theta);
     
     //Set timer to distance
-    util->tic(tempLoc->pol.r/(*travelVelocity)*1000);
+    util->tic((tempLoc->pol.r/(*travelVelocity))*1000);
     
     //Drive while adjusting for detected objects and motor drift
     while (1) {
@@ -326,8 +326,8 @@ bool Ant::getDirections(long timeout) {
 		time = millis();
 		
 		while ((softwareSerial->read() == -1) && (!util->isTime())) {
-			if (((abs(cmd[0]) < INT_MAX) && (abs(cmd[0]) > 0) && (millis() - time > max(abs(cmd[0]),30))) ||
-				((cmd[0] == 0) && (millis() - time > max(abs(cmd[1]/2),30)))) {
+			if (((abs(cmd[0]) < INT_MAX) && (abs(cmd[0]) > 0) && (millis() - time > max(abs(cmd[0]),5))) ||
+				((cmd[0] == 0) && (millis() - time > max(abs(cmd[1]),5)))) {
 				move->stopMove();
 				cmd[0] = INT_MAX;
 			}
@@ -613,7 +613,7 @@ int Ant::randomWalk(float fenceRadius) {
 			}
 			
 			//update current location with information from last leg
-			*absLoc = *absLoc + Location(Utilities::Polar((double)stepTimer/(*travelVelocity)*1000,compass->heading()));
+			*absLoc = *absLoc + Location(Utilities::Polar(*travelVelocity*((double)stepTimer/1000),compass->heading()));
             
 			searchTime++;
 		}
