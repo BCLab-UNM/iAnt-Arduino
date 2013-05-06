@@ -26,16 +26,8 @@ bool simFlag = false;
 //Motion Capture (set flag to true if using motion capture to control robot, false otherwise)
 bool mocapFlag = false;
 
-//Parameters evolved by GA
-float travelGiveUpProbability = 0.0;
-float searchGiveUpProbability = 0.0;	
-float uninformedSearchCorrelation = 0.0;
-float informedSearchCorrelationDecayRate = 0.0;
-float stepSizeVariation = 0.0;
-float siteFidelityRate = 0.0;
-float pheromoneFollowingRate = 0.0;
-Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(travelGiveUpProbability, searchGiveUpProbability, uninformedSearchCorrelation, 
-                                  informedSearchCorrelationDecayRate, stepSizeVariation, siteFidelityRate, pheromoneFollowingRate);
+//Parameters evolved by GA, initialized to arbitrary starting values
+Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(0.05, 0.01, 0.3, 0.3, 1.0, 0.25, 0.25);
 
 //Food
 byte tagStatus = 0; //indicates whether tag has been found while searching (0 = no tag, 1 = tag found, 2 = pheromone received)
@@ -98,6 +90,25 @@ void setup()
   softwareSerial.println("seed");
   ant.serialFind("seed");
   
+  //Request evolved parameters
+  softwareSerial.println("parameters");
+  if (ant.serialFind("parameters")) {
+    ep.travelGiveUpProbability = softwareSerial.parseFloat();
+    softwareSerial.read();
+    ep.searchGiveUpProbability = softwareSerial.parseFloat();
+    softwareSerial.read();
+    ep.uninformedSearchCorrelation = softwareSerial.parseFloat();
+    softwareSerial.read();
+    ep.informedSearchCorrelationDecayRate = softwareSerial.parseFloat();
+    softwareSerial.read();
+    ep.stepSizeVariation = softwareSerial.parseFloat();
+    softwareSerial.read();
+    ep.siteFidelityRate = softwareSerial.parseFloat();
+    softwareSerial.read();
+    ep.pheromoneFollowingRate = softwareSerial.parseFloat();
+    softwareSerial.read();
+  }
+  
   //Start prng with received value
   randomSeed(softwareSerial.parseInt());
 
@@ -118,8 +129,7 @@ void loop()
   ant.print("home");
  
   //If timeout occurs, we assume no location is available
-  if (ant.serialFind("pheromone"))
-  {
+  if (ant.serialFind("pheromone")) {
     foodLoc.cart.x = softwareSerial.parseInt();
     softwareSerial.read();
     foodLoc.cart.y = softwareSerial.parseInt();
@@ -130,7 +140,7 @@ void loop()
     //2. If we decided to use site fidelity on the previous loop iteration, we don't use pheromones
     //3. We probabilistically decide to use pheromones (and decide not to use site fidelity)
     if ((tagNeighbors == -1) || 
-          (((tagStatus != 1) && randm.uniform() < util.exponentialCDF(9 - tagNeighbors, ep.pheromoneFollowingRate)) && (randm.uniform() > util.exponentialCDF(tagNeighbors + 1, ep.siteFidelityRate)))){
+          (((tagStatus != 1) && randm.uniform() < util.exponentialCDF(9 - tagNeighbors, ep.pheromoneFollowingRate)) && (randm.uniform() > util.exponentialCDF(tagNeighbors + 1, ep.siteFidelityRate)))) {
       tagStatus = 2;
     }
   }
