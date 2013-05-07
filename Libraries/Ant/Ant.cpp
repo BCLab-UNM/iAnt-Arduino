@@ -196,7 +196,7 @@ void Ant::collisionAvoidance(unsigned long &loopTimer) {
 		*tempLoc = *goalLoc - *absLoc;
 		
 		//Align toward goal
-		align(tempLoc->pol.theta);
+		align(tempLoc->pol.theta,5);
 		
 		//Reset timer
 		util->tic((tempLoc->pol.r/(*travelVelocity))*1000);
@@ -255,10 +255,10 @@ void Ant::driftCorrection() {
 	}
     
 	if (angle >= allowedOffset) {
-		move->forward(*travelSpeed,constrain(*travelSpeed-(angle*7),0,255));
+		move->forward(*travelSpeed,constrain(*travelSpeed-(angle*25),0,255));
 	}
 	else if (angle <= -allowedOffset) {
-		move->forward(constrain(*travelSpeed+(angle*7),0,255),*travelSpeed);
+		move->forward(constrain(*travelSpeed+(angle*25),0,255),*travelSpeed);
 	}
     else {
         move->forward(*travelSpeed,*travelSpeed);
@@ -274,12 +274,12 @@ void Ant::drive(bool goingHome) {
     //This timer is reset after each execution of collisionAvoidance
     unsigned long loopTimer = millis();
     
-    //probabilityTimer is used to ensure probabilistic stop checks occur only every 1/4 of a second
-    //This timer is reset after 250 milliseconds (or more) pass
+    //probabilityTimer is used to ensure probabilistic stop checks occur only every 1/2 of a second
+    //This timer is reset after 500 milliseconds (or more) pass
     unsigned long probabilityTimer = millis();
     
     //Align to heading
-    align(tempLoc->pol.theta);
+    align(tempLoc->pol.theta,50);
     
     //Set timer to distance
     util->tic((tempLoc->pol.r/(*travelVelocity))*1000);
@@ -296,7 +296,7 @@ void Ant::drive(bool goingHome) {
     	}
     	
 		//If we're not driving back to the nest, and at least 250 ms have passed
-		if (!goingHome && ((millis() - probabilityTimer) >= 250))
+		if (!goingHome && ((millis() - probabilityTimer) >= 500))
 		{
 			//If tag status is 0, then we are uninformed and stop driving probabilistically
 			if ((*tagStatus == 0) && (randm->uniform() < evolvedParams->travelGiveUpProbability)) {
@@ -476,18 +476,14 @@ void Ant::print(String info) {
  **/
 int Ant::randomWalk(float fenceRadius) {
 	//Initialization
-	int searchTime = 0;
-	float goalHeading;
-	float currentHeading;
-	int tagNum;
-	int tagNeighbors;
+	int searchTime = 0; //counts number of times through main loop
 	int stepTimer = 500; //length of step in random walk (ms)
 	
 	//Take steps in a random walk, stop walking with probability evolvedParams->searchGiveUpProbability
 	//New angle is selected from normal distribution
 	while (randm->uniform() >= evolvedParams->searchGiveUpProbability) {
         
-		currentHeading = compass->heading();
+		float currentHeading = compass->heading();
 		
         float dTheta;
 		//If food was previously found at this location (either via site fidelity or pheromones)
@@ -503,7 +499,7 @@ int Ant::randomWalk(float fenceRadius) {
             dTheta = constrain(randm->normal(0,evolvedParams->uninformedSearchCorrelation),-PI,PI);
 		}
         
-        goalHeading = util->pmod(currentHeading + util->rad2deg(dTheta),360);
+        float goalHeading = util->pmod(currentHeading + util->rad2deg(dTheta),360);
 		
 		//We add bias to our new heading to direct the robot back towards the nest, but only
 		// if absLoc->pol.r is greater than fenceRadius (i.e. we are outside the virtual fence)
@@ -537,11 +533,11 @@ int Ant::randomWalk(float fenceRadius) {
 			//If iDevice sent "new"
 			if (result == 1) {
 				//record tag number
-				tagNum = softwareSerial->parseInt();
+				int tagNum = softwareSerial->parseInt();
 				softwareSerial->read();
 				
 				//count number of neighboring tags
-				tagNeighbors = countNeighbors(tagNum);
+				int tagNeighbors = countNeighbors(tagNum);
 				
 				//Ask iDevice to disable QR tag searching
 				softwareSerial->println("tag off");
@@ -558,9 +554,11 @@ int Ant::randomWalk(float fenceRadius) {
 			//If iDevice sent "old"
 			else if (result == 2) {
 				//Rotate 180 degrees to avoid re-reading tag
-                align(util->pmod(compass->heading()-180,360));
+                align(util->pmod(compass->heading()-180,360),5);
 			}
 		}
+        
+        currentHeading = compass->heading();
 		
 		//Ensure iDevice is in tag searching mode
 		softwareSerial->println("tag on");
@@ -587,11 +585,11 @@ int Ant::randomWalk(float fenceRadius) {
 				//If iDevice sent "new"
 				if (result == 1) {
 					//record tag number
-					tagNum = softwareSerial->parseInt();
+					int tagNum = softwareSerial->parseInt();
 					softwareSerial->read();
 					
 					//count number of neighboring tags
-					tagNeighbors = countNeighbors(tagNum);
+					int tagNeighbors = countNeighbors(tagNum);
 					
 					//Ask iDevice to disable QR tag searching
 					softwareSerial->println("tag off");
@@ -608,12 +606,12 @@ int Ant::randomWalk(float fenceRadius) {
 				//If iDevice sent "old"
 				else if (result == 2) {
 					//Rotate 180 degrees to avoid re-reading tag
-					align(util->pmod(compass->heading()-180,360));
+					align(util->pmod(compass->heading()-180,360),5);
 				}
 			}
 			
 			//update current location with information from last leg
-			*absLoc = *absLoc + Location(Utilities::Polar(*travelVelocity*((double)stepTimer/1000),compass->heading()));
+			*absLoc = *absLoc + Location(Utilities::Polar(*travelVelocity*((double)stepTimer/1000),currentHeading));
             
 			searchTime++;
 		}
