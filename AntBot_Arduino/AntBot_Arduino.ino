@@ -185,7 +185,7 @@ void loop()
   }
   
   //Adjust location structs
-  goalLoc = Ant::Location(Utilities::Polar(nestRadius+collisionDistance,absLoc.pol.theta));
+  goalLoc = Ant::Location(Utilities::Polar(nestRadius+(collisionDistance*2),absLoc.pol.theta));
   tempLoc = goalLoc - absLoc;
   
   //Drive to nest
