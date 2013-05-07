@@ -128,30 +128,50 @@ void loop()
   //Signal location to ABS via iDevice
   ant.print("home");
  
+  bool pheromoneReceived = false;
   //If timeout occurs, we assume no location is available
   if (ant.serialFind("pheromone")) {
-    foodLoc.cart.x = softwareSerial.parseInt();
+    tempLoc.cart.x = softwareSerial.parseInt();
     softwareSerial.read();
-    foodLoc.cart.y = softwareSerial.parseInt();
+    tempLoc.cart.y = softwareSerial.parseInt();
     softwareSerial.read();
-    
-    //We decide whether to use the pheromone location we've received:
-    //1. If no tags were found on the previous trip, we follow pheromones by default
-    //2. If we decided to use site fidelity on the previous loop iteration, we don't use pheromones
-    //3. We probabilistically decide to use pheromones (and decide not to use site fidelity)
-    if ((tagNeighbors == -1) || 
-          (((tagStatus != 1) && randm.uniform() < util.exponentialCDF(9 - tagNeighbors, ep.pheromoneFollowingRate)) && (randm.uniform() > util.exponentialCDF(tagNeighbors + 1, ep.siteFidelityRate)))) {
+    pheromoneReceived = true;
+  }
+  
+  //If no tags were found on the previous trip
+  if (tagNeighbors == -1) {
+    //We follow pheromones if available
+    if (pheromoneReceived) {
+      goalLoc = tempLoc;
       tagStatus = 2;
+    }
+    //Otherwise we choose a new location at random
+    else {
+      goalLoc = Ant::Location(Utilities::Polar(fenceRadius,randm.boundedUniform(0,359)));
+      tagStatus = 0;
+    }
+  }
+  //Otherwise
+  else {
+    //We follow pheromones probabilistically if available
+    if (pheromoneReceived && (randm.uniform() < util.exponentialCDF(9 - tagNeighbors, ep.pheromoneFollowingRate)) && (randm.uniform() > util.exponentialCDF(tagNeighbors + 1, ep.siteFidelityRate))) {
+      goalLoc = tempLoc;
+      tagStatus = 2;
+    }
+    //Or we use site fidelity probabilistically
+    else if ((randm.uniform() < util.exponentialCDF(tagNeighbors + 1, ep.siteFidelityRate)) && (!pheromoneReceived || (randm.uniform() > util.exponentialCDF(9 - tagNeighbors, ep.pheromoneFollowingRate)))) {
+      goalLoc = foodLoc;
+      tagStatus = 1;
+    }
+    //If neither pheromones nor site fidelity, we choose a new location at random
+    else {
+      goalLoc = Ant::Location(Utilities::Polar(fenceRadius,randm.boundedUniform(0,359)));
+      tagStatus = 0;
     }
   }
   
-  //goalLoc will holds location of the goal in relation to the nest (NOTE: A new goal is randomly selected here if food was not found in last search)
-  if (tagStatus == 0) goalLoc = Ant::Location(Utilities::Polar(fenceRadius,randm.boundedUniform(0,359)));
-  else goalLoc = foodLoc;
-  //tempLoc holds distance and heading from the *start* of the current leg to the goal
+  //Calculate directions leading from current position to goal
   tempLoc = goalLoc - absLoc;
-  //absLoc holds the location of the robot relative to the nest
-  //foodLoc holds the location of any food discovered while searching
   
   //Drive to goal
   ant.drive(false);
@@ -159,19 +179,9 @@ void loop()
   //Perform random walk with varying turn radius depending on whether food was found on previous trip
   tagNeighbors = ant.randomWalk(fenceRadius);
   
-  //We decide whether to use site fidelity:
-  //1. If a tag was found, and...
-  //2. If we probabilistically decide to use site fidelity (and decide not to use pheromones)
-  if ((tagNeighbors >= 0) && (randm.uniform() < util.exponentialCDF(tagNeighbors + 1, ep.siteFidelityRate)) && (randm.uniform() > util.exponentialCDF(9 - tagNeighbors, ep.pheromoneFollowingRate))) {
-    //Mark sit fidelity status
-    tagStatus = 1;
-    //Record tag location
+  //If a tag was found, we record its location
+  if (tagNeighbors >= 0) {
     foodLoc = absLoc;
-  }
-  //Otherwise
-  else {
-    //Mark new random location status (may change if we received pheromone location from server)
-    tagStatus = 0;
   }
   
   //Adjust location structs
