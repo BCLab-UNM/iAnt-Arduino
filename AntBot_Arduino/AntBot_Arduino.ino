@@ -31,7 +31,7 @@ Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(0.05, 0.01, 0.3, 
 
 //Food
 byte tagStatus = 0; //indicates whether tag has been found while searching (0 = no tag, 1 = tag found, 2 = pheromone received)
-int tagNeighbors = 0; //holds number of neighboring tags found near tag
+int tagNeighbors = -1; //holds number of neighboring tags found near tag
 
 //Location
 Ant::Location absLoc; //holds absolute location (relative to nest)
@@ -46,7 +46,7 @@ const byte speed_left = 11; //Ardumoto speed, left side
 const byte dir_right = 12; //Ardumoto direction, right side
 const byte dir_left = 13; //Ardumoto direction, left side
 byte travelSpeed = 255; //motor speed used while moving forward/backward
-byte rotateSpeed = 180; //motor speed used while rotating left/right
+byte rotateSpeed = 140; //motor speed used while rotating left/right
 
 //SoftwareSerial
 const byte ssRx = 4;
