@@ -164,7 +164,9 @@ void Ant::calibrateCompass() {
  **/
 void Ant::collisionAvoidance(unsigned long &loopTimer) {
 	//Update absolute location with ground covered since last absolute location update
-	*absLoc = *absLoc + Location(Utilities::Polar(*travelVelocity*((double)(millis()-loopTimer)/1000), tempLoc->pol.theta));
+	*absLoc = *absLoc + Location(Utilities::Polar(*travelVelocity*((millis()-loopTimer)/1000.0), tempLoc->pol.theta));
+    //Reset loopTimer
+	loopTimer = millis();
 	
 	//Loop as long as object is found within collisionDistance
 	while (us->collisionDetection(*collisionDistance)) {
@@ -200,10 +202,10 @@ void Ant::collisionAvoidance(unsigned long &loopTimer) {
 		
 		//Reset timer
 		util->tic((tempLoc->pol.r/(*travelVelocity))*1000);
+        
+        //Reset loopTimer
+        loopTimer = millis();
 	}
-	
-	//Reset loopTimer
-	loopTimer = millis();
 }
 
 /**
@@ -269,7 +271,12 @@ void Ant::driftCorrection() {
  *	Moves the robot from its current location using tempLoc's pol.r (distance) and pol.theta (heading)
  **/
 void Ant::drive(bool goingHome) {
-	
+    //Align to heading
+    align(tempLoc->pol.theta,50);
+    
+    //Set timer to distance
+    util->tic((tempLoc->pol.r/(*travelVelocity))*1000);
+    
     //loopTimer is used to measure ground distance covered during each iteration of while loop
     //This timer is reset after each execution of collisionAvoidance
     unsigned long loopTimer = millis();
@@ -277,12 +284,6 @@ void Ant::drive(bool goingHome) {
     //probabilityTimer is used to ensure probabilistic stop checks occur only every 1/2 of a second
     //This timer is reset after 500 milliseconds (or more) pass
     unsigned long probabilityTimer = millis();
-    
-    //Align to heading
-    align(tempLoc->pol.theta,50);
-    
-    //Set timer to distance
-    util->tic((tempLoc->pol.r/(*travelVelocity))*1000);
     
     //Drive while adjusting for detected objects and motor drift
     while (1) {
@@ -306,6 +307,9 @@ void Ant::drive(bool goingHome) {
 			probabilityTimer = millis();
 		}
     }
+    
+    //Update absolute location with ground covered since last absolute location update
+	*absLoc = *absLoc + Location(Utilities::Polar(*travelVelocity*((millis()-loopTimer)/1000.0), tempLoc->pol.theta));
     
     //Stop movement
     move->stopMove();
