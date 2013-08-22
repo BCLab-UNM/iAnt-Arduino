@@ -1,12 +1,14 @@
 /**
  *	Library for all higher-level (requiring multiple base libraries) AntBot functions
  *	on Arduino platform
- *	Rev 1/13/12
- *	Joshua Hecker
  **/
 
 #ifndef Ant_h
 #define Ant_h
+
+#define ROBOT_INFORMED_NONE 0
+#define ROBOT_INFORMED_MEMORY 1
+#define ROBOT_INFORMED_PHEROMONE 2
 
 #include <Compass.h>
 #include <Movement.h>
@@ -65,7 +67,7 @@ public:
     Ant(Compass &co,Movement &m,Random &r,SoftwareSerial &sS,Ultrasound &ul,Utilities &ut,
         Location &aL,Location &gL,Location &tL,Utilities::EvolvedParameters &ep,
         unsigned long &gT,const float &nR,const float &rR,const float &cD,
-        const float &mR,byte &tS,bool &mC,byte &tSp,byte &rSp,const float &tVe);
+        const float &mR,byte &iS,bool &mC,byte &tSp,byte &rSp,const float &tVe);
     
     //Functions
     void align (float newHeading,int count=1);
@@ -108,7 +110,7 @@ private:
     const float *robotRadius;
     const float *collisionDistance;
     const float *usMaxRange;
-    byte *tagStatus;
+    byte *informedStatus;
     bool *motionCapture;
     byte *travelSpeed;
     byte *rotateSpeed;

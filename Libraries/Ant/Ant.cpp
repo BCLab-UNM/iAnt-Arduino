@@ -1,7 +1,6 @@
 /**
  *	Library for all higher-level (requiring multiple base libraries) AntBot functions
  *	on Arduino platform
- *	Joshua Hecker
  **/
 
 #include <Ant.h>
@@ -17,7 +16,7 @@ Ant::Ant(){}
 Ant::Ant(Compass &co, Movement &m, Random &r, SoftwareSerial &sS, Ultrasound &ul, Utilities &ut,
          Location &aL, Location &gL, Location &tL, Utilities::EvolvedParameters &ep,
          unsigned long &gT,const float &nR,const float &rR,const float &cD,
-         const float &mR,byte &tS,bool &mC,byte &tSp,byte &rSp,const float &tVe) {
+         const float &mR,byte &iS,bool &mC,byte &tSp,byte &rSp,const float &tVe) {
     
 	//Local objects
 	compass = &co;
@@ -39,7 +38,7 @@ Ant::Ant(Compass &co, Movement &m, Random &r, SoftwareSerial &sS, Ultrasound &ul
 	robotRadius = &rR;
 	collisionDistance = &cD;
 	usMaxRange = &mR;
-	tagStatus = &tS;
+	informedStatus = &iS;
 	motionCapture = &mC;
     travelSpeed = &tSp;
     rotateSpeed = &rSp;
@@ -216,22 +215,44 @@ int Ant::countNeighbors(int firstTag)
 {
 	//Initialize local variables
 	int tagCount = 0;
-	int lastTag = 0;
-    
-	for (int i=1; i<36; i++) {
-		align(util->pmod(compass->heading() + 10,360));
+	int stepTimer = 500;
+	
+	while (randm->uniform() < evolvedParams->neighborSearchGiveUpProbability) {
+		//Align to uniform random heading
+		align(randm->boundedUniform(0,359));
+		
+		//Check for tag
 		if (serialFind("new","old",200) == 1) {
 			int currentTag = softwareSerial->parseInt();
 			softwareSerial->read();
-			if ((currentTag != firstTag) && (currentTag != lastTag)) {
+			if (currentTag != firstTag) {
 				//Count neighboring tag
 				tagCount++;
-				//Update last tag
-				lastTag = currentTag;
+			}
+		}
+	
+		//Check collision distance twice to avoid false readings
+		if (!us->collisionDetection(*collisionDistance) && !us->collisionDetection(*collisionDistance)) {	
+			//set timer
+			util->tic(stepTimer);
+				
+			//drive forward
+			move->forward(*travelSpeed,*travelSpeed);
+			while (!util->isTime() && !softwareSerial->available()) {}
+			move->stopMove();
+		}
+		
+		//Check for tag
+		if (serialFind("new","old",200) == 1) {
+			int currentTag = softwareSerial->parseInt();
+			softwareSerial->read();
+			if (currentTag != firstTag) {
+				//Count neighboring tag
+				tagCount++;
 			}
 		}
 	}
-	
+
 	return tagCount;
 }
 
@@ -296,11 +317,11 @@ void Ant::drive(bool goingHome) {
     		break;
     	}
     	
-		//If we're not driving back to the nest, and at least 250 ms have passed
+		//If we're not driving back to the nest, and at least 500 ms have passed
 		if (!goingHome && ((millis() - probabilityTimer) >= 500))
 		{
-			//If tag status is 0, then we are uninformed and stop driving probabilistically
-			if ((*tagStatus == 0) && (randm->uniform() < evolvedParams->travelGiveUpProbability)) {
+			//If robot is not informed, then we stop driving probabilistically
+			if ((*informedStatus == ROBOT_INFORMED_NONE) && (randm->uniform() < evolvedParams->travelGiveUpProbability)) {
 				break;
 			}
 			
@@ -489,13 +510,16 @@ int Ant::randomWalk(float fenceRadius) {
         
 		float currentHeading = compass->heading();
 		
+		//Probabilistically give up informed (local) search if using it
+        if(*informedStatus && (randm->uniform() < evolvedParams->informedGiveUpProbability)) {
+        	*informedStatus = ROBOT_INFORMED_NONE;
+        }
+		
         float dTheta;
 		//If food was previously found at this location (either via site fidelity or pheromones)
-		if (*tagStatus > 0) {
-			//calculate additional deviation
-            float informedSearchCorrelation = util->exponentialDecay(4*PI-evolvedParams->uninformedSearchCorrelation, searchTime, evolvedParams->informedSearchCorrelationDecayRate);
-            //start with wide turning radius and shrink over time
-			dTheta = constrain(randm->normal(0,evolvedParams->uninformedSearchCorrelation + informedSearchCorrelation),-PI,PI);
+		if (*informedStatus) {
+			//use constant deviation
+            dTheta = constrain(randm->normal(0,evolvedParams->informedSearchCorrelation),-PI,PI);
 		}
 		//Otherwise
 		else {
@@ -508,7 +532,7 @@ int Ant::randomWalk(float fenceRadius) {
 		//We add bias to our new heading to direct the robot back towards the nest, but only
 		// if absLoc->pol.r is greater than fenceRadius (i.e. we are outside the virtual fence)
 		float angle = util->angle(goalHeading, util->pmod(absLoc->pol.theta-180,360));
-		goalHeading = util->pmod(goalHeading + util->exponentialCDF((absLoc->pol.r-fenceRadius)/100.0,3)*angle, 360);
+		goalHeading = util->pmod(goalHeading + util->poissonCDF((absLoc->pol.r-fenceRadius)/100.0,3)*angle, 360);
 		
 		//Ask iDevice to enable QR tag searching
 		softwareSerial->println("tag on");
@@ -540,8 +564,8 @@ int Ant::randomWalk(float fenceRadius) {
 				int tagNum = softwareSerial->parseInt();
 				softwareSerial->read();
 				
-				//count number of neighboring tags
-				int tagNeighbors = countNeighbors(tagNum);
+				//record total number of tags found
+				int tagsFound = countNeighbors(tagNum) + 1;
 				
 				//Ask iDevice to disable QR tag searching
 				softwareSerial->println("tag off");
@@ -550,9 +574,9 @@ int Ant::randomWalk(float fenceRadius) {
 				localize();
 				
 				//transmit location and tag info to ABS via iDevice
-				print("tag," + String(tagNum) + "," + String(tagNeighbors));
+				print("tag," + String(tagNum) + "," + String(tagsFound));
 				
-				return tagNeighbors;
+				return tagsFound;
 			}
 			
 			//If iDevice sent "old"
@@ -592,8 +616,8 @@ int Ant::randomWalk(float fenceRadius) {
 					int tagNum = softwareSerial->parseInt();
 					softwareSerial->read();
 					
-					//count number of neighboring tags
-					int tagNeighbors = countNeighbors(tagNum);
+					//record total number of tags found
+					int tagsFound = countNeighbors(tagNum) + 1;
 					
 					//Ask iDevice to disable QR tag searching
 					softwareSerial->println("tag off");
@@ -602,9 +626,9 @@ int Ant::randomWalk(float fenceRadius) {
 					localize();
 					
 					//transmit location and tag info to server
-					print("tag," + String(tagNum) + "," + String(tagNeighbors));
+					print("tag," + String(tagNum) + "," + String(tagsFound));
 					
-					return tagNeighbors;
+					return tagsFound;
 				}
 				
 				//If iDevice sent "old"
@@ -624,8 +648,8 @@ int Ant::randomWalk(float fenceRadius) {
 	//ensure correct location
 	localize();
     
-	//negative value indicates no tag found
-	return -1;
+	//return 0, no tags found
+	return 0;
 }
 
 /**
