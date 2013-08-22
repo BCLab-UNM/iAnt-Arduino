@@ -1,7 +1,5 @@
 /**
 *	Library for Utility functions related to AntBot project
-*	Created by Joshua Hecker
-*	Moses Lab, Department of Computer Science, University of New Mexico
 **/
 
 #include <Utilities.h>
@@ -127,25 +125,19 @@ bool Utilities::isTime()
 	}
 }
 
-/**
-*	Implements cumulative probability function for exponential distribution
-*	Lambda term defaults to 1
-**/
-float Utilities::exponentialCDF(float x, float lambda) {
-	if (x >= 0) {
-		return (1 - exp(-lambda*x));
-	}
-	else {
-		return 0;
-	}
-}
-
-/**
-*   Implements exponential decay function
-*   Returns decay of quantity at time given rate of change lambda
-**/
-float Utilities::exponentialDecay(float quantity, float time, float lambda) {
-    return (quantity * exp(-lambda*time));
+/*
+ * Returns Poisson cumulative probability at a given k and lambda
+ */
+float Utilities::poissonCDF(float k, float lambda) {
+    float sumAccumulator = 1;
+    float factorialAccumulator = 1;
+    
+    for (int i = 1; i <= floor(k); i++) {
+        factorialAccumulator *= i;
+        sumAccumulator += pow(lambda, i) / factorialAccumulator;
+    }
+    
+    return (exp(-lambda) * sumAccumulator);
 }
 
 ///////////////////

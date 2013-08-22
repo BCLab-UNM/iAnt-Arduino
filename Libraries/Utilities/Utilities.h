@@ -1,7 +1,5 @@
 /**
  *	Library for Utility functions related to AntBot project
- *	Created by Joshua Hecker
- *	Moses Lab, Department of Computer Science, University of New Mexico
  **/
 
 #ifndef Utilities_h
@@ -30,18 +28,21 @@ public:
     };
     struct EvolvedParameters {
         EvolvedParameters(float tGUP, float sGUP,
-                          float uSC, float iSCDR, float sSV,
-                          float sFR, float pFR):
+                          float uSC, float iSC,
+                          float iGUP, float nSGUP, float sSV,
+                          float sFR):
         travelGiveUpProbability(tGUP), searchGiveUpProbability(sGUP),
-        uninformedSearchCorrelation(uSC), informedSearchCorrelationDecayRate(iSCDR), stepSizeVariation(sSV),
-        siteFidelityRate(sFR), pheromoneFollowingRate(pFR) {}
+        uninformedSearchCorrelation(uSC), informedSearchCorrelation(iSC), 
+        informedGiveUpProbability(iGUP), neighborSearchGiveUpProbability(nSGUP), stepSizeVariation(sSV),
+        siteFidelityRate(sFR) {}
         float travelGiveUpProbability;
         float searchGiveUpProbability;
         float uninformedSearchCorrelation;
-        float informedSearchCorrelationDecayRate;
+        float informedSearchCorrelation;
+        float informedGiveUpProbability;
+        float neighborSearchGiveUpProbability;
         float stepSizeVariation;
         float siteFidelityRate;
-        float pheromoneFollowingRate;
     };
     
     //Functions
@@ -51,8 +52,7 @@ public:
     Utilities::Cartesian pol2cart(Utilities::Polar pol);
     Utilities::Polar cart2pol(Utilities::Cartesian cart);
     float pmod(float dividend, float divisor);
-    float exponentialCDF(float x, float lambda=1.0);
-    float exponentialDecay(float quantity, float time, float lambda);
+    float poissonCDF(float k, float lambda);
     
     //Legacy Functions
     //byte* parseIP(char* address);
