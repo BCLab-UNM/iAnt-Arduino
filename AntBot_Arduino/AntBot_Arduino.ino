@@ -27,11 +27,11 @@ bool simFlag = false;
 bool mocapFlag = false;
 
 //Parameters evolved by GA, initialized to arbitrary starting values
-Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(0.05, 0.01, 0.3, 0.3, 1.0, 0.25, 0.25);
+Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(0.05, 0.01, 0.3, 3.0, 0.05, 0.25, 1.0, 4.0);
 
 //Food
-byte tagStatus = 0; //indicates whether tag has been found while searching (0 = no tag, 1 = tag found, 2 = pheromone received)
-int tagNeighbors = -1; //holds number of neighboring tags found near tag
+byte informedStatus = 0; //Indicates what type of information is influencing the robot's behavior (ROBOT_INFORMED_NONE, ROBOT_INFORMED_MEMORY, or ROBOT_INFORMED_PHEROMONE)
+int tagsFound = 0; //holds number of tags found
 
 //Location
 Ant::Location absLoc; //holds absolute location (relative to nest)
@@ -74,7 +74,7 @@ Compass compass = Compass(util,softwareSerial,mocapFlag);
 Movement move = Movement(speed_right,speed_left,dir_right,dir_left,simFlag);
 Ultrasound us = Ultrasound(usTrigger,usEcho,simFlag,usMaxRange);
 Random randm;
-Ant ant = Ant(compass,move,randm,softwareSerial,us,util,absLoc,goalLoc,tempLoc,ep,globalTimer,nestRadius,robotRadius,collisionDistance,usMaxRange,tagStatus,mocapFlag,travelSpeed,rotateSpeed,travelVelocity);
+Ant ant = Ant(compass,move,randm,softwareSerial,us,util,absLoc,goalLoc,tempLoc,ep,globalTimer,nestRadius,robotRadius,collisionDistance,usMaxRange,informedStatus,mocapFlag,travelSpeed,rotateSpeed,travelVelocity);
 
 
 /////////////
@@ -99,14 +99,16 @@ void setup()
     softwareSerial.read();
     ep.uninformedSearchCorrelation = softwareSerial.parseFloat();
     softwareSerial.read();
-    ep.informedSearchCorrelationDecayRate = softwareSerial.parseFloat();
+    ep.informedSearchCorrelation = softwareSerial.parseFloat();
+    softwareSerial.read();
+    ep.informedGiveUpProbability = softwareSerial.parseFloat();
+    softwareSerial.read();
+    ep.neighborSearchGiveUpProbability = softwareSerial.parseFloat();
     softwareSerial.read();
     ep.stepSizeVariation = softwareSerial.parseFloat();
     softwareSerial.read();
     ep.siteFidelityRate = softwareSerial.parseFloat();
-    softwareSerial.read();
-    ep.pheromoneFollowingRate = softwareSerial.parseFloat();
-    softwareSerial.read();
+    softwareSerial.read();  
   }
   
   //Start prng with received value
@@ -138,36 +140,25 @@ void loop()
     pheromoneReceived = true;
   }
   
-  //If no tags were found on the previous trip
-  if (tagNeighbors == -1) {
-    //We follow pheromones if available
-    if (pheromoneReceived) {
-      goalLoc = tempLoc;
-      tagStatus = 2;
-    }
-    //Otherwise we choose a new location at random
-    else {
-      goalLoc = Ant::Location(Utilities::Polar(fenceRadius,randm.boundedUniform(0,359)));
-      tagStatus = 0;
-    }
+  //Set site fidelity flag
+  bool siteFidelityFlag = randm.uniform() < util.poissonCDF(tagsFound, ep.siteFidelityRate);
+  
+  //If a tag was found, decide whether to return to its location
+  if ((tagsFound > 0) && siteFidelityFlag) {
+    goalLoc = foodLoc;
+    informedStatus = ROBOT_INFORMED_MEMORY;
   }
-  //Otherwise
+  
+  //If pheromones exist
+  else if (pheromoneReceived && !siteFidelityFlag) {
+    goalLoc = tempLoc;
+    informedStatus = ROBOT_INFORMED_PHEROMONE;
+  }
+  
+  //If no pheromones and no tag, go to a random location
   else {
-    //We follow pheromones probabilistically if available
-    if (pheromoneReceived && (randm.uniform() < util.exponentialCDF(9 - tagNeighbors, ep.pheromoneFollowingRate)) && (randm.uniform() > util.exponentialCDF(tagNeighbors + 1, ep.siteFidelityRate))) {
-      goalLoc = tempLoc;
-      tagStatus = 2;
-    }
-    //Or we use site fidelity probabilistically
-    else if ((randm.uniform() < util.exponentialCDF(tagNeighbors + 1, ep.siteFidelityRate)) && (!pheromoneReceived || (randm.uniform() > util.exponentialCDF(9 - tagNeighbors, ep.pheromoneFollowingRate)))) {
-      goalLoc = foodLoc;
-      tagStatus = 1;
-    }
-    //If neither pheromones nor site fidelity, we choose a new location at random
-    else {
-      goalLoc = Ant::Location(Utilities::Polar(fenceRadius,randm.boundedUniform(0,359)));
-      tagStatus = 0;
-    }
+    goalLoc = Ant::Location(Utilities::Polar(fenceRadius,randm.boundedUniform(0,359)));
+    informedStatus = ROBOT_INFORMED_NONE;
   }
   
   //Calculate directions leading from current position to goal
@@ -177,10 +168,10 @@ void loop()
   ant.drive(false);
   
   //Perform random walk with varying turn radius depending on whether food was found on previous trip
-  tagNeighbors = ant.randomWalk(fenceRadius);
+  tagsFound = ant.randomWalk(fenceRadius);
   
-  //If a tag was found, we record its location
-  if (tagNeighbors >= 0) {
+  //If at least one tag was found, we record its location
+  if (tagsFound > 0) {
     foodLoc = absLoc;
   }
   
