@@ -217,7 +217,7 @@ int Ant::countNeighbors(int firstTag)
 	int tagCount = 0;
 	int stepTimer = 500;
 	
-	while (randm->uniform() < evolvedParams->neighborSearchGiveUpProbability) {
+	while (randm->uniform() >= evolvedParams->neighborSearchGiveUpProbability) {
 		//Align to uniform random heading
 		align(randm->boundedUniform(0,359));
 		
