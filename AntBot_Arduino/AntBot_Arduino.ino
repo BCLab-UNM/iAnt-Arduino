@@ -90,6 +90,9 @@ void setup()
   softwareSerial.println("seed");
   ant.serialFind("seed");
   
+  //Start prng with received value
+  randomSeed(softwareSerial.parseInt());
+  
   //Request evolved parameters
   softwareSerial.println("parameters");
   if (ant.serialFind("parameters")) {
@@ -111,9 +114,6 @@ void setup()
     softwareSerial.read();  
   }
   
-  //Start prng with received value
-  randomSeed(softwareSerial.parseInt());
-
   //Start global timer
   globalTimer = micros();
 }
