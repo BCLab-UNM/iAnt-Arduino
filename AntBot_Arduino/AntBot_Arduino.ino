@@ -27,7 +27,7 @@ bool simFlag = false;
 bool mocapFlag = false;
 
 //Parameters evolved by GA, initialized to arbitrary starting values
-Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(0.05, 0.01, 0.3, 3.0, 0.05, 0.25, 1.0, 4.0);
+Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(0.05, 0.01, 0.3, 0.3, 1.0, 4.0);
 
 //Food
 byte informedStatus = 0; //Indicates what type of information is influencing the robot's behavior (ROBOT_INFORMED_NONE, ROBOT_INFORMED_MEMORY, or ROBOT_INFORMED_PHEROMONE)
@@ -102,11 +102,7 @@ void setup()
     softwareSerial.read();
     ep.uninformedSearchCorrelation = softwareSerial.parseFloat();
     softwareSerial.read();
-    ep.informedSearchCorrelation = softwareSerial.parseFloat();
-    softwareSerial.read();
-    ep.informedGiveUpProbability = softwareSerial.parseFloat();
-    softwareSerial.read();
-    ep.neighborSearchGiveUpProbability = softwareSerial.parseFloat();
+    ep.informedSearchCorrelationDecayRate = softwareSerial.parseFloat();
     softwareSerial.read();
     ep.stepSizeVariation = softwareSerial.parseFloat();
     softwareSerial.read();

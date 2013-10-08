@@ -28,19 +28,15 @@ public:
     };
     struct EvolvedParameters {
         EvolvedParameters(float tGUP, float sGUP,
-                          float uSC, float iSC,
-                          float iGUP, float nSGUP, float sSV,
+                          float uSC, float iSC, float sSV,
                           float sFR):
         travelGiveUpProbability(tGUP), searchGiveUpProbability(sGUP),
-        uninformedSearchCorrelation(uSC), informedSearchCorrelation(iSC), 
-        informedGiveUpProbability(iGUP), neighborSearchGiveUpProbability(nSGUP), stepSizeVariation(sSV),
+        uninformedSearchCorrelation(uSC), informedSearchCorrelationDecayRate(iSC), stepSizeVariation(sSV),
         siteFidelityRate(sFR) {}
         float travelGiveUpProbability;
         float searchGiveUpProbability;
         float uninformedSearchCorrelation;
-        float informedSearchCorrelation;
-        float informedGiveUpProbability;
-        float neighborSearchGiveUpProbability;
+        float informedSearchCorrelationDecayRate;
         float stepSizeVariation;
         float siteFidelityRate;
     };
@@ -53,6 +49,7 @@ public:
     Utilities::Polar cart2pol(Utilities::Cartesian cart);
     float pmod(float dividend, float divisor);
     float poissonCDF(float k, float lambda);
+    float exponentialDecay(float quantity, float time, float lambda);
     
     //Legacy Functions
     //byte* parseIP(char* address);

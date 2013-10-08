@@ -140,6 +140,14 @@ float Utilities::poissonCDF(float k, float lambda) {
     return (exp(-lambda) * sumAccumulator);
 }
 
+/**
+ *   Implements exponential decay function
+ *   Returns decay of quantity at time given rate of change lambda
+ **/
+float Utilities::exponentialDecay(float quantity, float time, float lambda) {
+    return (quantity * exp(-lambda*time));
+}
+
 ///////////////////
 ////LEGACY CODE////
 ///////////////////

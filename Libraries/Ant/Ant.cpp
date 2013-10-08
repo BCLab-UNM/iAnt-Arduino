@@ -215,44 +215,22 @@ int Ant::countNeighbors(int firstTag)
 {
 	//Initialize local variables
 	int tagCount = 0;
-	int stepTimer = 500;
-	
-	while (randm->uniform() >= evolvedParams->neighborSearchGiveUpProbability) {
-		//Align to uniform random heading
-		align(randm->boundedUniform(0,359));
-		
-		//Check for tag
+	int lastTag = 0;
+    
+	for (int i=1; i<36; i++) {
+		align(util->pmod(compass->heading() + 10,360));
 		if (serialFind("new","old",200) == 1) {
 			int currentTag = softwareSerial->parseInt();
 			softwareSerial->read();
-			if (currentTag != firstTag) {
+			if ((currentTag != firstTag) && (currentTag != lastTag)) {
 				//Count neighboring tag
 				tagCount++;
-			}
-		}
-	
-		//Check collision distance twice to avoid false readings
-		if (!us->collisionDetection(*collisionDistance) && !us->collisionDetection(*collisionDistance)) {	
-			//set timer
-			util->tic(stepTimer);
-				
-			//drive forward
-			move->forward(*travelSpeed,*travelSpeed);
-			while (!util->isTime() && !softwareSerial->available()) {}
-			move->stopMove();
-		}
-		
-		//Check for tag
-		if (serialFind("new","old",200) == 1) {
-			int currentTag = softwareSerial->parseInt();
-			softwareSerial->read();
-			if (currentTag != firstTag) {
-				//Count neighboring tag
-				tagCount++;
+				//Update last tag
+				lastTag = currentTag;
 			}
 		}
 	}
-
+    
 	return tagCount;
 }
 
@@ -510,16 +488,12 @@ int Ant::randomWalk(float fenceRadius) {
         
 		float currentHeading = compass->heading();
 		
-		//Probabilistically give up informed (local) search if using it
-        if(*informedStatus && (randm->uniform() < evolvedParams->informedGiveUpProbability)) {
-        	*informedStatus = ROBOT_INFORMED_NONE;
-        }
-		
         float dTheta;
 		//If food was previously found at this location (either via site fidelity or pheromones)
 		if (*informedStatus) {
-			//use constant deviation
-            dTheta = constrain(randm->normal(0,evolvedParams->informedSearchCorrelation),-PI,PI);
+            //use deviation that decays over time
+            float informedSearchCorrelation = util->exponentialDecay(4*PI - evolvedParams->uninformedSearchCorrelation, searchTime++, evolvedParams->informedSearchCorrelationDecayRate);
+            dTheta = constrain(randm->normal(0, informedSearchCorrelation + evolvedParams->uninformedSearchCorrelation), -PI, PI);
 		}
 		//Otherwise
 		else {
@@ -640,8 +614,6 @@ int Ant::randomWalk(float fenceRadius) {
 			
 			//update current location with information from last leg
 			*absLoc = *absLoc + Location(Utilities::Polar(*travelVelocity*((double)stepTimer/1000),currentHeading));
-            
-			searchTime++;
 		}
 	}
 	
