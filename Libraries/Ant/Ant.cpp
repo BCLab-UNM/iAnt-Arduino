@@ -555,8 +555,14 @@ int Ant::randomWalk(float fenceRadius) {
 			
 			//If iDevice sent "old"
 			else if (result == 2) {
-				//Rotate 180 degrees to avoid re-reading tag
-                align(util->pmod(compass->heading()-180,360),5);
+                //Ask iDevice to disable QR tag searching
+				softwareSerial->println("tag off");
+                
+				//Move forward one step
+                util->tic(stepTimer);
+                move->forward(*travelSpeed,*travelSpeed);
+                while (!util->isTime()) {}
+                move->stopMove();
 			}
 		}
         
@@ -607,8 +613,14 @@ int Ant::randomWalk(float fenceRadius) {
 				
 				//If iDevice sent "old"
 				else if (result == 2) {
-					//Rotate 180 degrees to avoid re-reading tag
-					align(util->pmod(compass->heading()-180,360),5);
+					//Ask iDevice to disable QR tag searching
+                    softwareSerial->println("tag off");
+                    
+                    //Move forward one step
+                    util->tic(stepTimer);
+                    move->forward(*travelSpeed,*travelSpeed);
+                    while (!util->isTime()) {}
+                    move->stopMove();
 				}
 			}
 			
