@@ -21,7 +21,7 @@ Ant::Ant(Compass &co, Movement &m, Random &r, SoftwareSerial &sS, Ultrasound &ul
 	//Local objects
 	compass = &co;
 	move = &m;
-    randm = &r;
+	randm = &r;
 	softwareSerial = &sS;
 	us = &ul;
 	util = &ut;
@@ -30,7 +30,7 @@ Ant::Ant(Compass &co, Movement &m, Random &r, SoftwareSerial &sS, Ultrasound &ul
 	absLoc = &aL;
 	goalLoc = &gL;
 	tempLoc = &tL;
-    evolvedParams = &ep;
+	evolvedParams = &ep;
 	
 	//Local variables
 	globalTimer = &gT;
@@ -40,9 +40,9 @@ Ant::Ant(Compass &co, Movement &m, Random &r, SoftwareSerial &sS, Ultrasound &ul
 	usMaxRange = &mR;
 	informedStatus = &iS;
 	motionCapture = &mC;
-    travelSpeed = &tSp;
-    rotateSpeed = &rSp;
-    travelVelocity = &tVe;
+	travelSpeed = &tSp;
+	rotateSpeed = &rSp;
+	travelVelocity = &tVe;
 }
 
 /**
@@ -164,7 +164,7 @@ void Ant::calibrateCompass() {
 void Ant::collisionAvoidance(unsigned long &loopTimer) {
 	//Update absolute location with ground covered since last absolute location update
 	*absLoc = *absLoc + Location(Utilities::Polar(*travelVelocity*((millis()-loopTimer)/1000.0), tempLoc->pol.theta));
-    //Reset loopTimer
+	//Reset loopTimer
 	loopTimer = millis();
 	
 	//Loop as long as object is found within collisionDistance
@@ -202,8 +202,8 @@ void Ant::collisionAvoidance(unsigned long &loopTimer) {
 		//Reset timer
 		util->tic((tempLoc->pol.r/(*travelVelocity))*1000);
         
-        //Reset loopTimer
-        loopTimer = millis();
+		//Reset loopTimer
+		loopTimer = millis();
 	}
 }
 
@@ -261,43 +261,42 @@ void Ant::driftCorrection() {
 	else if (angle <= -allowedOffset) {
 		move->forward(constrain(*travelSpeed+(angle*25),0,255),*travelSpeed);
 	}
-    else {
-        move->forward(*travelSpeed,*travelSpeed);
-    }
+	else {
+		move->forward(*travelSpeed,*travelSpeed);
+	}
 }
 
 /**
  *	Moves the robot from its current location using tempLoc's pol.r (distance) and pol.theta (heading)
  **/
 void Ant::drive(bool goingHome) {
-    //Align to heading
-    align(tempLoc->pol.theta,50);
-    
-    //Set timer to distance
-    util->tic((tempLoc->pol.r/(*travelVelocity))*1000);
-    
-    //loopTimer is used to measure ground distance covered during each iteration of while loop
-    //This timer is reset after each execution of collisionAvoidance
-    unsigned long loopTimer = millis();
-    
-    //probabilityTimer is used to ensure probabilistic stop checks occur only every 1/2 of a second
-    //This timer is reset after 500 milliseconds (or more) pass
-    unsigned long probabilityTimer = millis();
-    
-    //Drive while adjusting for detected objects and motor drift
-    while (1) {
-    	driftCorrection(); //correct for motor drift
-    	collisionAvoidance(loopTimer); //check for collision; maneuver and update location
-        
-    	//If the timer has expired (i.e. we have reached our goal location)
-    	if (util->isTime()) {
-    		//Then exit loop
-    		break;
-    	}
+	//Align to heading
+	align(tempLoc->pol.theta,50);
+
+	//Set timer to distance
+	util->tic((tempLoc->pol.r/(*travelVelocity))*1000);
+
+	//loopTimer is used to measure ground distance covered during each iteration of while loop
+	//This timer is reset after each execution of collisionAvoidance
+	unsigned long loopTimer = millis();
+
+	//probabilityTimer is used to ensure probabilistic stop checks occur only every 1/2 of a second
+	//This timer is reset after 500 milliseconds (or more) pass
+	unsigned long probabilityTimer = millis();
+
+	//Drive while adjusting for detected objects and motor drift
+	while (1) {
+		driftCorrection(); //correct for motor drift
+		collisionAvoidance(loopTimer); //check for collision; maneuver and update location
+
+		//If the timer has expired (i.e. we have reached our goal location)
+		if (util->isTime()) {
+			//Then exit loop
+			break;
+		}
     	
 		//If we're not driving back to the nest, and at least 500 ms have passed
-		if (!goingHome && ((millis() - probabilityTimer) >= 500))
-		{
+		if (!goingHome && ((millis() - probabilityTimer) >= 500)) {
 			//If robot is not informed, then we stop driving probabilistically
 			if ((*informedStatus == ROBOT_INFORMED_NONE) && (randm->uniform() < evolvedParams->travelGiveUpProbability)) {
 				break;
@@ -305,13 +304,13 @@ void Ant::drive(bool goingHome) {
 			
 			probabilityTimer = millis();
 		}
-    }
+	}
     
-    //Update absolute location with ground covered since last absolute location update
+	//Update absolute location with ground covered since last absolute location update
 	*absLoc = *absLoc + Location(Utilities::Polar(*travelVelocity*((millis()-loopTimer)/1000.0), tempLoc->pol.theta));
     
-    //Stop movement
-    move->stopMove();
+	//Stop movement
+	move->stopMove();
 }
 
 /**
@@ -458,11 +457,11 @@ void Ant::localize() {
  **/
 void Ant::print(String info) {
 	String msg = "print"
-    + String(micros()-*globalTimer)
-    + ","
-    + String((int)round(absLoc->cart.x))
-    + ","
-    + String((int)round(absLoc->cart.y));
+	           + String(micros()-*globalTimer)
+	           + ","
+	           + String((int)round(absLoc->cart.x))
+	           + ","
+	           + String((int)round(absLoc->cart.y));
 	
 	//If optional additional string is provided
 	if (info.length() > 0) {
@@ -488,20 +487,20 @@ int Ant::randomWalk(float fenceRadius) {
         
 		float currentHeading = compass->heading();
 		
-        float dTheta;
+		float dTheta;
 		//If food was previously found at this location (either via site fidelity or pheromones)
 		if (*informedStatus) {
-            //use deviation that decays over time
-            float informedSearchCorrelation = util->exponentialDecay(4*PI - evolvedParams->uninformedSearchCorrelation, searchTime++, evolvedParams->informedSearchCorrelationDecayRate);
-            dTheta = constrain(randm->normal(0, informedSearchCorrelation + evolvedParams->uninformedSearchCorrelation), -PI, PI);
+			//use deviation that decays over time
+			float informedSearchCorrelation = util->exponentialDecay(4*PI - evolvedParams->uninformedSearchCorrelation, searchTime++, evolvedParams->informedSearchCorrelationDecayRate);
+			dTheta = constrain(randm->normal(0, informedSearchCorrelation + evolvedParams->uninformedSearchCorrelation), -PI, PI);
 		}
 		//Otherwise
 		else {
-            //use constant deviation
-            dTheta = constrain(randm->normal(0,evolvedParams->uninformedSearchCorrelation),-PI,PI);
+			//use constant deviation
+			dTheta = constrain(randm->normal(0,evolvedParams->uninformedSearchCorrelation),-PI,PI);
 		}
         
-        float goalHeading = util->pmod(currentHeading + util->rad2deg(dTheta),360);
+		float goalHeading = util->pmod(currentHeading + util->rad2deg(dTheta),360);
 		
 		//We add bias to our new heading to direct the robot back towards the nest, but only
 		// if absLoc->pol.r is greater than fenceRadius (i.e. we are outside the virtual fence)
@@ -527,10 +526,10 @@ int Ant::randomWalk(float fenceRadius) {
 			}
 		}
 		
-        //If iDevice has discovered a tag and has directions available
-        if (softwareSerial->available() && getDirections(5000)) {
-            //Check iDevice for valid QR tag
-            int result = serialFind("new","old",5000);
+		//If iDevice has discovered a tag and has directions available
+		if (softwareSerial->available() && getDirections(5000)) {
+			//Check iDevice for valid QR tag
+			int result = serialFind("new","old",5000);
             
 			//If iDevice sent "new"
 			if (result == 1) {
@@ -555,18 +554,18 @@ int Ant::randomWalk(float fenceRadius) {
 			
 			//If iDevice sent "old"
 			else if (result == 2) {
-                //Ask iDevice to disable QR tag searching
+				//Ask iDevice to disable QR tag searching
 				softwareSerial->println("tag off");
                 
 				//Move forward one step
-                util->tic(stepTimer);
-                move->forward(*travelSpeed,*travelSpeed);
-                while (!util->isTime()) {}
-                move->stopMove();
+				util->tic(stepTimer);
+				move->forward(*travelSpeed,*travelSpeed);
+				while (!util->isTime()) {}
+				move->stopMove();
 			}
 		}
         
-        currentHeading = compass->heading();
+		currentHeading = compass->heading();
 		
 		//Ensure iDevice is in tag searching mode
 		softwareSerial->println("tag on");
@@ -614,13 +613,13 @@ int Ant::randomWalk(float fenceRadius) {
 				//If iDevice sent "old"
 				else if (result == 2) {
 					//Ask iDevice to disable QR tag searching
-                    softwareSerial->println("tag off");
-                    
-                    //Move forward one step
-                    util->tic(stepTimer);
-                    move->forward(*travelSpeed,*travelSpeed);
-                    while (!util->isTime()) {}
-                    move->stopMove();
+					softwareSerial->println("tag off");
+
+					//Move forward one step
+					util->tic(stepTimer);
+					move->forward(*travelSpeed,*travelSpeed);
+					while (!util->isTime()) {}
+					move->stopMove();
 				}
 			}
 			
