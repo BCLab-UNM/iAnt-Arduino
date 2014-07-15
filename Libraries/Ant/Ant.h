@@ -70,27 +70,20 @@ public:
         const float &mR,byte &iS,bool &mC,byte &tSp,byte &rSp,const float &tVe);
     
     //Functions
-    void align (float newHeading,int count=1);
-    void calibrateCompass();
+		void adjustMotors(int rotate, int forward);
+    void align (float heading,int count=1);
+		void drive(float distance);
+		float getCompass();
+		float getUltrasound();
     void collisionAvoidance(unsigned long &loopTimer);
     void driftCorrection();
-    void drive(bool goingHome);
-    bool getDirections(long timeout=2000);
-    void localize();
-    void print(String info="");
-    int randomWalk(float fenceRadius);
-    int serialFind(String msg, long timeout=2000);
-    int serialFind(String msgOne, String msgTwo, long timeout=2000);
     
     //Legacy Functions
     //bool sensorFusion(int n,Location* locs,Covariance* covs,Location &loc_prime,Covariance cov_prime);
     
 private:
-    //Functions
-    byte calibrateSpeed(int degrees);
-    int countNeighbors(int tagNum);
     
-    //Pointers to objects
+		//Pointers to objects
     Compass *compass;
     Movement *move;
     Random *randm;
