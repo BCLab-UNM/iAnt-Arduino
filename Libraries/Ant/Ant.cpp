@@ -506,7 +506,7 @@ int Ant::randomWalk(float fenceRadius) {
 		//We add bias to our new heading to direct the robot back towards the nest, but only
 		// if absLoc->pol.r is greater than fenceRadius (i.e. we are outside the virtual fence)
 		float angle = util->angle(goalHeading, util->pmod(absLoc->pol.theta-180,360));
-		goalHeading = util->pmod(goalHeading + util->poissonCDF((absLoc->pol.r-fenceRadius)/100.0,3)*angle, 360);
+		goalHeading = util->pmod(goalHeading + util->poissonCDF(absLoc->pol.r-fenceRadius,3)*angle, 360); 
 		
 		//Ask iDevice to enable QR tag searching
 		softwareSerial->println("tag on");
