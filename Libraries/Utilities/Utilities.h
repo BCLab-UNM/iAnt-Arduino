@@ -64,7 +64,6 @@ public:
     long toc();
     bool isTime();
     
-private:
     //Timer variables
     unsigned long timerStart;
     unsigned long timerStop;

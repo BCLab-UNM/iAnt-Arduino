@@ -1,4 +1,4 @@
-/////////////////////////
+//////////////////////////
 ////Required Libraries////
 //////////////////////////
 
@@ -87,6 +87,7 @@ void setup()
 {
   softwareSerial.begin(9600);
   softwareSerial.println("ready");
+  softwareSerial.println("ready");
   message = "";
 }
 
@@ -97,7 +98,7 @@ void setup()
 void loop() {
   if(softwareSerial.available()) {
     char c = softwareSerial.read();
-  
+
     if(c == ',' || c == '\n') {
       parse();
       message = "";
@@ -109,10 +110,27 @@ void loop() {
 }
 
 void parse() {
-  if(message == "motors") {
+  if(message == "ready") {
+    softwareSerial.println("ready");
+  }
+  else if(message == "delay") {
+    delay(softwareSerial.parseInt());
+  }
+  else if(message == "motors") {
     int rotate = softwareSerial.parseInt();
     int forward = softwareSerial.parseInt();
-    ant.adjustMotors(rotate, forward);
+    int duration = 0;
+
+    // Parse an optional duration
+    char c = -1;
+    while(c == -1) {
+      c = softwareSerial.peek();
+    }
+    if(c != '\r'){
+      duration = softwareSerial.parseInt();
+    }
+
+    ant.adjustMotors(rotate, forward, duration);
   }
   else if(message == "drive") {
     float distance = softwareSerial.parseFloat();
