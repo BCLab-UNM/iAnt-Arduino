@@ -81,100 +81,77 @@ Ant ant = Ant(compass,move,randm,softwareSerial,us,util,absLoc,goalLoc,tempLoc,e
 ////Setup////
 /////////////
 
+String message;
+
 void setup()
 {
-  //Open serial connection to iDevice
   softwareSerial.begin(9600);
-  
-  //Request random seed
-  softwareSerial.println("seed");
-  ant.serialFind("seed");
-  
-  //Start prng with received value
-  randomSeed(softwareSerial.parseInt());
-  
-  //Request evolved parameters
-  softwareSerial.println("parameters");
-  if (ant.serialFind("parameters")) {
-    ep.travelGiveUpProbability = softwareSerial.parseFloat();
-    softwareSerial.read();
-    ep.searchGiveUpProbability = softwareSerial.parseFloat();
-    softwareSerial.read();
-    ep.uninformedSearchCorrelation = softwareSerial.parseFloat();
-    softwareSerial.read();
-    ep.informedSearchCorrelationDecayRate = softwareSerial.parseFloat();
-    softwareSerial.read();
-    ep.stepSizeVariation = softwareSerial.parseFloat();
-    softwareSerial.read();
-    ep.siteFidelityRate = softwareSerial.parseFloat();
-    softwareSerial.read();  
-  }
-  
-  //Start global timer
-  globalTimer = micros();
+  softwareSerial.println("ready");
+  softwareSerial.println("ready");
+  message = "";
 }
 
 /////////////////
 ////Main Loop////
 /////////////////
 
-void loop()
-{
-  //Localize
-  ant.localize();
-  
-  //Signal location to ABS via iDevice
-  ant.print("home");
- 
-  bool pheromoneReceived = false;
-  //If timeout occurs, we assume no location is available
-  if (ant.serialFind("pheromone")) {
-    tempLoc.cart.x = softwareSerial.parseInt();
-    softwareSerial.read();
-    tempLoc.cart.y = softwareSerial.parseInt();
-    softwareSerial.read();
-    pheromoneReceived = true;
+void loop() {
+  if(softwareSerial.available()) {
+    char c = softwareSerial.read();
+
+    if(c == ',' || c == '\n') {
+      parse();
+      message = "";
+    }
+    else if(c != -1) {
+      message += c;
+    }
   }
-  
-  //Set site fidelity flag
-  bool siteFidelityFlag = randm.uniform() < util.poissonCDF(tagsFound, ep.siteFidelityRate);
-  
-  //If a tag was found, decide whether to return to its location
-  if ((tagsFound > 0) && siteFidelityFlag) {
-    goalLoc = foodLoc;
-    informedStatus = ROBOT_INFORMED_MEMORY;
+}
+
+void parse() {
+  if(message == "ready") {
+    softwareSerial.println("ready");
   }
-  
-  //If pheromones exist
-  else if (pheromoneReceived && !siteFidelityFlag) {
-    goalLoc = tempLoc;
-    informedStatus = ROBOT_INFORMED_PHEROMONE;
+  else if(message == "delay") {
+    delay(softwareSerial.parseInt());
   }
-  
-  //If no pheromones and no tag, go to a random location
-  else {
-    goalLoc = Ant::Location(Utilities::Polar(fenceRadius,randm.boundedUniform(0,359)));
-    informedStatus = ROBOT_INFORMED_NONE;
+  else if(message == "motors") {
+    int rotate = softwareSerial.parseInt();
+    int forward = softwareSerial.parseInt();
+    int duration = 0;
+
+    // Parse an optional duration
+    char c = -1;
+    while(c == -1) {
+      c = softwareSerial.peek();
+    }
+    if(c != '\r'){
+      duration = softwareSerial.parseInt();
+    }
+
+    ant.adjustMotors(rotate, forward, duration);
   }
-  
-  //Calculate directions leading from current position to goal
-  tempLoc = goalLoc - absLoc;
-  
-  //Drive to goal
-  ant.drive(false);
-  
-  //Perform random walk with varying turn radius depending on whether food was found on previous trip
-  tagsFound = ant.randomWalk(fenceRadius);
-  
-  //If at least one tag was found, we record its location
-  if (tagsFound > 0) {
-    foodLoc = absLoc;
+  else if(message == "drive") {
+    float distance = softwareSerial.parseFloat();
+    ant.drive(distance);
+    softwareSerial.println("drive");
   }
-  
-  //Adjust location structs
-  goalLoc = Ant::Location(Utilities::Polar(nestRadius+(collisionDistance*2),absLoc.pol.theta));
-  tempLoc = goalLoc - absLoc;
-  
-  //Drive to nest
-  ant.drive(true);
+  else if(message == "align") {
+    float heading = softwareSerial.parseFloat();
+    ant.align(heading);
+    softwareSerial.println("align");
+  }
+  else if(message == "compass") {
+    float heading = ant.getCompass();
+    char str[10];
+    dtostrf(heading, 6, 2, str);
+    softwareSerial.println("compass," + String(str));
+  }
+  else if(message == "ultrasound") {
+    float distance = ant.getUltrasound();
+    char str[10];
+    dtostrf(distance, 6, 2, str);
+    softwareSerial.println("ultrasound," + String(str));
+  }
 }
