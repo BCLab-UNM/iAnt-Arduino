@@ -6,9 +6,6 @@
 #include <SoftwareSerial.h>
 #include <Wire.h> //Interface for compass
 
-//Libraries acquired from elsewhere
-#include <Random.h>
-
 //Libraries created for the AntBot project
 #include <Ant.h>
 #include <Compass.h>
@@ -25,20 +22,6 @@ bool simFlag = false;
 
 //Motion Capture (set flag to true if using motion capture to control robot, false otherwise)
 bool mocapFlag = false;
-
-//Parameters evolved by GA, initialized to arbitrary starting values
-Utilities::EvolvedParameters ep = Utilities::EvolvedParameters(0.05, 0.01, 0.3, 0.3, 1.0, 4.0);
-
-//Food
-byte informedStatus = 0; //Indicates what type of information is influencing the robot's behavior (ROBOT_INFORMED_NONE, ROBOT_INFORMED_MEMORY, or ROBOT_INFORMED_PHEROMONE)
-int tagsFound = 0; //holds number of tags found
-
-//Location
-Ant::Location absLoc; //holds absolute location (relative to nest)
-Ant::Location goalLoc; //holds current goal location
-Ant::Location tempLoc; //holds current location (relative to current leg)
-Ant::Location foodLoc; //holds location of last food found
-const float fenceRadius = 500; //radius of virtual fence (cm)
 
 //Servos
 const byte speed_right = 3; //Ardumoto speed, right side
@@ -57,11 +40,8 @@ const byte usEcho = 16; //Ultrasonic echo pin
 const byte usTrigger = 17; //Ultrasonic trigger pin
 const float usMaxRange = 300; //limit of ultrasound (cm) (we ignore any values returned above this threshold)
 const float collisionDistance = 30; //threshold distance for collision recognition (cm)
-const float nestRadius = 8; //radius of the nest (cm)
-const float robotRadius = 10.5; //distance from ultrasound sensor to robot's center of rotation
 
 //Other
-unsigned long globalTimer; //holds start time of current run
 const float travelVelocity = 16.3; //speed of robot during travel behavior
 
 ////////////////////////////
@@ -73,8 +53,7 @@ Utilities util;
 Compass compass = Compass(util,softwareSerial,mocapFlag);
 Movement move = Movement(speed_right,speed_left,dir_right,dir_left,simFlag);
 Ultrasound us = Ultrasound(usTrigger,usEcho,simFlag,usMaxRange);
-Random randm;
-Ant ant = Ant(compass,move,randm,softwareSerial,us,util,absLoc,goalLoc,tempLoc,ep,globalTimer,nestRadius,robotRadius,collisionDistance,usMaxRange,informedStatus,mocapFlag,travelSpeed,rotateSpeed,travelVelocity);
+Ant ant = Ant(compass,move,us,util,collisionDistance,mocapFlag,travelSpeed,rotateSpeed,travelVelocity);
 
 
 /////////////

@@ -6,14 +6,8 @@
 #ifndef Ant_h
 #define Ant_h
 
-#define ROBOT_INFORMED_NONE 0
-#define ROBOT_INFORMED_MEMORY 1
-#define ROBOT_INFORMED_PHEROMONE 2
-
 #include <Compass.h>
 #include <Movement.h>
-#include <Random.h>
-#include <SoftwareSerial.h>
 #include <Ultrasound.h>
 #include <Utilities.h>
 
@@ -52,10 +46,8 @@ public:
 	
 	//Constructors
 	Ant();
-	Ant(Compass &co,Movement &m,Random &r,SoftwareSerial &sS,Ultrasound &ul,Utilities &ut,
-	    Location &aL,Location &gL,Location &tL,Utilities::EvolvedParameters &ep,
-	    unsigned long &gT,const float &nR,const float &rR,const float &cD,
-	    const float &mR,byte &iS,bool &mC,byte &tSp,byte &rSp,const float &tVe);
+	Ant(Compass &co,Movement &m,Ultrasound &ul,Utilities &ut,
+	    const float &cD,bool &mC,byte &tSp,byte &rSp,const float &tVe);
 	
 	//Functions
 	void adjustMotors(int rotate, int forward, int duration);
@@ -74,24 +66,11 @@ private:
 	//Pointers to objects
 	Compass *compass;
 	Movement *move;
-	Random *randm;
-	SoftwareSerial *softwareSerial;
 	Ultrasound *us;
 	Utilities *util;
 	
-	//Pointers to structs
-	Location *absLoc;
-	Location *goalLoc;
-	Location *tempLoc;
-	Utilities::EvolvedParameters *evolvedParams;
-	
 	//Pointers to variables
-	unsigned long *globalTimer;
-	const float *nestRadius;
-	const float *robotRadius;
 	const float *collisionDistance;
-	const float *usMaxRange;
-	byte *informedStatus;
 	bool *motionCapture;
 	byte *travelSpeed;
 	byte *rotateSpeed;

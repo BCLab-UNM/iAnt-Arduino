@@ -13,32 +13,17 @@ Ant::Ant(){}
 /**
  *	Constructor receives all relevant instantiated base objects
  **/
-Ant::Ant(Compass &co, Movement &m, Random &r, SoftwareSerial &sS, Ultrasound &ul, Utilities &ut,
-         Location &aL, Location &gL, Location &tL, Utilities::EvolvedParameters &ep,
-         unsigned long &gT,const float &nR,const float &rR,const float &cD,
-         const float &mR,byte &iS,bool &mC,byte &tSp,byte &rSp,const float &tVe) {
+Ant::Ant(Compass &co, Movement &m, Ultrasound &ul, Utilities &ut,
+         const float &cD,bool &mC,byte &tSp,byte &rSp,const float &tVe) {
 	
 	//Local objects
 	compass = &co;
 	move = &m;
-	randm = &r;
-	softwareSerial = &sS;
 	us = &ul;
 	util = &ut;
 	
-	//Local structs
-	absLoc = &aL;
-	goalLoc = &gL;
-	tempLoc = &tL;
-	evolvedParams = &ep;
-	
 	//Local variables
-	globalTimer = &gT;
-	nestRadius = &nR;
-	robotRadius = &rR;
 	collisionDistance = &cD;
-	usMaxRange = &mR;
-	informedStatus = &iS;
 	motionCapture = &mC;
 	travelSpeed = &tSp;
 	rotateSpeed = &rSp;
