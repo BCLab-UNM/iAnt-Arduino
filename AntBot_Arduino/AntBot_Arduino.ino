@@ -64,8 +64,7 @@ String message;
 
 void setup()
 {
-  softwareSerial.begin(9600);
-  softwareSerial.println("ready");
+  softwareSerial.begin(57600);
   softwareSerial.println("ready");
   message = "";
 }
@@ -98,17 +97,7 @@ void parse() {
   else if(message == "motors") {
     int rotate = softwareSerial.parseInt();
     int forward = softwareSerial.parseInt();
-    int duration = 0;
-
-    // Parse an optional duration
-    char c = -1;
-    while(c == -1) {
-      c = softwareSerial.peek();
-    }
-    if(c != '\r'){
-      duration = softwareSerial.parseInt();
-    }
-
+    int duration = softwareSerial.parseInt();
     ant.adjustMotors(rotate, forward, duration);
   }
   else if(message == "drive") {
