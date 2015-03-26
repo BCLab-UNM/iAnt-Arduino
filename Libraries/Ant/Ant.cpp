@@ -123,8 +123,8 @@ float Ant::getUltrasound() {
  **/
 float Ant::collisionAvoidance(float direction, float distance) {
 
-	Location position, target;
-	target = Location(Utilities::Polar(distance, direction));
+	Location delta, path;
+	path = Location(Utilities::Polar(distance, direction));
 
 	//Loop as long as object is found within collisionDistance
 	while(us->collisionDetection(*collisionDistance)) {
@@ -141,29 +141,26 @@ float Ant::collisionAvoidance(float direction, float distance) {
 		//We poll the compass here and throw the value away
 		//This ensures the correct value for the location calculation below
 		compass->heading();
-		//****NOTE****
-		//Figure out why the compass gives the wrong value here.
-		//Does this happen anywhere else??
 		
 		//Move to empty location in space discovered above
 		move->forward(*travelSpeed, *travelSpeed);
 		delay((*collisionDistance / *travelVelocity) * 1000);
 		move->stopMove();
 		
-		//Update absolute location with ground covered during avoidance behavior above
-		position = Location(Utilities::Polar(*collisionDistance, compass->heading()));
+		//Vector defining ground covered during avoidance behavior above
+		delta = Location(Utilities::Polar(*collisionDistance, compass->heading()));
 		
-		//Update relative location with distance and angle between absolute location and goal
-		target = target - position;
+		//Update relative location with distance and angle between previous path and new, changed path during avoidance
+		path = path - delta;
 		
 		//Align toward goal
-		//align(target.pol.theta, 5);
+		align(path.pol.theta, 5);
 		
 		//Reset timer
-		util->tic((target.pol.r / *travelVelocity) * 1000);
+		util->tic((path.pol.r / *travelVelocity) * 1000);
 	}
 
-	return target.pol.theta;
+	return path.pol.theta;
 }
 
 /**
