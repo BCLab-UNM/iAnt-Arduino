@@ -67,6 +67,7 @@ void setup()
   softwareSerial.begin(57600);
   softwareSerial.println("ready");
   message = "";
+  ant.getCompass(); //read and toss the first compass value, as it's generally invalid
 }
 
 /////////////////
@@ -111,7 +112,9 @@ void parse() {
     softwareSerial.println("align");
   }
   else if(message == "compass") {
-    float heading = ant.getCompass();
+    float heading = ant.getCompass(); //toss the first compass reading for each compass request to ensure most up-to-date sampling
+    delay(4); //short delay to ensure fresh, most correct value available in buffer
+    heading = ant.getCompass();
     char str[10];
     dtostrf(heading, 6, 2, str);
     softwareSerial.println("compass," + String(str));
