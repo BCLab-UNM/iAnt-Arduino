@@ -64,8 +64,8 @@ void Ant::adjustMotors(int rotate, int forward, int duration) {
 	move->stopMove();
 }
 
-void Ant::align(float heading, int count) {
-	for(int i = 0; i < count; i++) {
+void Ant::align(float heading) {
+	for(int i = 0; i < 10; i++) {
 		float currentHeading = compass->heading();
 		while(fabs(util->angle(currentHeading, heading)) >= 1) {
 			if(util->angle(currentHeading, heading) <= -1) {
@@ -154,7 +154,7 @@ float Ant::collisionAvoidance(float direction, float distance) {
 		path = path - delta;
 		
 		//Align toward goal
-		align(path.pol.theta, 5);
+		align(path.pol.theta);
 		
 		//Reset timer
 		util->tic((path.pol.r / *travelVelocity) * 1000);

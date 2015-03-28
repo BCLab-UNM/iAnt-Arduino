@@ -51,7 +51,7 @@ public:
 	
 	//Functions
 	void adjustMotors(int rotate, int forward, int duration);
-	void align(float heading, int count=1);
+	void align(float heading);
 	void drive(float distance);
 	float getCompass();
 	float getUltrasound();
