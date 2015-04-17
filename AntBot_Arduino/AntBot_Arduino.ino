@@ -5,6 +5,7 @@
 //Built-in libraries
 #include <SoftwareSerial.h>
 #include <Wire.h> //Interface for compass
+#include <Servo.h>
 
 //Libraries created for the AntBot project
 #include <Ant.h>
@@ -12,6 +13,7 @@
 #include <Movement.h>
 #include <Ultrasound.h>
 #include <Utilities.h>
+#include <Gripper.h>
 
 ////////////////
 ////Settings////
@@ -31,6 +33,16 @@ const byte dir_left = 13; //Ardumoto direction, left side
 byte travelSpeed = 255; //motor speed used while moving forward/backward
 byte rotateSpeed = 140; //motor speed used while rotating left/right
 
+// Gripper Servo
+int gripperPneumaticServoPin = 6;
+int gripperPneumaticServoPos = 0;
+int gripperPneumaticServoMin = 0;
+int gripperPneumaticServoMax = 180;
+
+// Gripper Solinoid
+int gripperSolenoidPin = 7;
+boolean gripperSolenoidOn = true;
+
 //SoftwareSerial
 const byte ssRx = 4;
 const byte ssTx = 5;
@@ -47,6 +59,14 @@ const float travelVelocity = 16.3; //speed of robot during travel behavior
 ////////////////////////////
 ////Class Instantiations////
 ////////////////////////////
+
+Gripper gripper( gripperPneumaticServoPin, 
+		 gripperPneumaticServoPos, 
+		 gripperPneumaticServoMin,
+		 gripperPneumaticServoMin,
+		 gripperSolenoidPin,
+		 gripperSolenoidOn
+		   );
 
 SoftwareSerial softwareSerial(ssRx,ssTx);
 Utilities util;
@@ -86,6 +106,9 @@ void loop() {
       message += c;
     }
   }
+
+  // Test gripper
+  gripper.pickup();
 }
 
 void parse() {
