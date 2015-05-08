@@ -106,9 +106,6 @@ void loop() {
       message += c;
     }
   }
-
-  // Test gripper
-  gripper.pickup();
 }
 
 void parse() {
@@ -147,5 +144,11 @@ void parse() {
     char str[10];
     dtostrf(distance, 6, 2, str);
     softwareSerial.println("ultrasound," + String(str));
+  }
+  else if(message == "pickup") {
+    gripper.pickup();
+  }
+  else if(message == "drop") {
+    gripper.putdown();
   }
 }
