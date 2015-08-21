@@ -1,5 +1,5 @@
 /**
-*	Library for Utility functions related to AntBot project
+*	Library for Utility functions related to low-level iAnt control
 **/
 
 #include <Utilities.h>

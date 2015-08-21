@@ -1,5 +1,5 @@
 /**
- *	Library for all higher-level (requiring multiple base libraries) AntBot functions
+ *	Library for all higher-order (requiring multiple base libraries) iAnt functions
  *	on Arduino platform
  **/
 
